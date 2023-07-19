@@ -4,7 +4,7 @@ import { AMQPQueue } from './amqp-queue.js'
 import { AMQPConsumer } from './amqp-consumer.js'
 import { AMQPMessage } from './amqp-message.js'
 import { AMQPBaseClient } from './amqp-base-client.js'
-import { AMQPProperties } from './amqp-properties.js'
+import { AMQPProperties, Field } from './amqp-properties.js'
 
 /**
  * Represents an AMQP Channel. Almost all actions in AMQP are performed on a Channel.
@@ -919,5 +919,5 @@ export type ConsumeParams = {
   /**
    * custom arguments
    */
-  args?: Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any
+  args?: Record<string, Field>
 };
