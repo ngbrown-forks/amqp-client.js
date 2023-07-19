@@ -67,7 +67,7 @@ export class AMQPWebSocketClient extends AMQPBaseClient {
    */
   override send(bytes: Uint8Array): Promise<void> {
     return new Promise((resolve, reject) => {
-      if (this.socket) {
+      if (this.socket && this.socket.readyState === this.socket.OPEN) {
         try {
           this.socket.send(bytes)
           resolve()
