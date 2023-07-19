@@ -13,8 +13,7 @@ export class AMQPChannel {
   readonly connection: AMQPBaseClient
   readonly id: number
   readonly consumers = new Map<string, AMQPConsumer>()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly promises: [(value?: any) => void, (err?: Error) => void][] = []
+  readonly promises: [(value?: unknown) => void, (err?: Error) => void][] = []
   private readonly unconfirmedPublishes: [number, (confirmId: number) => void, (err?: Error) => void][] = []
   closed = false
   confirmId = 0

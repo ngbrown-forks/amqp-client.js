@@ -81,8 +81,10 @@ export abstract class AMQPBaseClient {
     channelOpen.setUint8(j, 0); j += 1 // reserved1
     channelOpen.setUint8(j, 206); j += 1 // frame end byte
     return new Promise((resolve, reject) => {
+      const resolveChannelValue = (value?: unknown) =>
+        value instanceof AMQPChannel ? resolve(value) : reject(new AMQPError("value did not resolved as a AMQPChannel", this));
       this.send(new Uint8Array(channelOpen.buffer, 0, 13))
-        .then(() => channel.promises.push([resolve, reject]))
+        .then(() => channel.promises.push([resolveChannelValue, reject]))
         .catch(reject)
     })
   }
