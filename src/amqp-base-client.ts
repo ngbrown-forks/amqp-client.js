@@ -38,6 +38,8 @@ export abstract class AMQPBaseClient {
   frameMax: number
   /** Heartbeat interval in seconds. */
   heartbeat: number
+  /** Timestamp, from `performance.now()`, when the last server data was received. */
+  lastDataReceived: number | undefined = undefined
   /** Callback for connection-level errors. */
   onerror: (error: AMQPError) => void
   /** Logger instance, or undefined to disable logging. */
@@ -132,7 +134,7 @@ export abstract class AMQPBaseClient {
   close(reason = "", code = 200): Promise<void> {
     if (this.closed) return this.rejectClosed()
     this.closed = true
-
+    this.lastDataReceived = undefined
     const frame = new AMQPFrame.Writer({
       bufferSize: 512,
       type: AMQPFrame.Type.METHOD,
@@ -713,5 +715,15 @@ export abstract class AMQPBaseClient {
       }
       i += 1 // frame end
     }
+    this.lastDataReceived = performance.now()
+  }
+
+  /**
+   * Get the time since connection or last server data was received.
+   * @returns milliseconds; Infinity if disconnected
+   */
+  durationSinceLastData(): number {
+    if (typeof this.lastDataReceived === "number") return performance.now() - this.lastDataReceived
+    return Infinity
   }
 }
