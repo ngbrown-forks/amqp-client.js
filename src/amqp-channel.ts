@@ -140,7 +140,7 @@ export class AMQPChannel {
     frame.setUint32(3, j - 8) // update frameSize
 
     return new Promise((resolve, reject) => {
-      this.sendRpc(frame, j).then((consumerTag) =>  {
+      this.sendRpc<string>(frame, j).then((consumerTag) =>  {
         const consumer = new AMQPConsumer(this, consumerTag, callback)
         this.consumers.set(consumerTag, consumer)
         resolve(consumer)
@@ -168,7 +168,7 @@ export class AMQPChannel {
     frame.setUint32(3, j - 8) // update frameSize
 
     return new Promise((resolve, reject) => {
-      this.sendRpc(frame, j).then((consumerTag) => {
+      this.sendRpc<string>(frame, j).then((consumerTag) => {
         const consumer = this.consumers.get(consumerTag)
         if (consumer) {
           consumer.setClosed()
@@ -748,11 +748,10 @@ export class AMQPChannel {
    * @param frame with data
    * @param frameSize - bytes the frame actually is
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private sendRpc(frame: AMQPView, frameSize: number): Promise<any> {
+  private sendRpc<T>(frame: AMQPView, frameSize: number): Promise<T> {
     return new Promise((resolve, reject) => {
       this.connection.send(new Uint8Array(frame.buffer, 0, frameSize))
-        .then(() => this.promises.push([resolve, reject]))
+        .then(() => this.promises.push([resolve as (value?: unknown) => void, reject]))
         .catch(reject)
     })
   }
