@@ -1,6 +1,6 @@
-import { AMQPBaseClient } from './amqp-base-client.js'
-import { AMQPView } from './amqp-view.js'
-import { AMQPError } from './amqp-error.js'
+import { AMQPBaseClient } from "./amqp-base-client.js"
+import { AMQPView } from "./amqp-view.js"
+import { AMQPError } from "./amqp-error.js"
 
 interface AMQPWebSocketInit {
   url: string
@@ -12,7 +12,7 @@ interface AMQPWebSocketInit {
   heartbeat?: number
 }
 
-/** 
+/**
  * WebSocket client for AMQP 0-9-1 servers
  */
 export class AMQPWebSocketClient extends AMQPBaseClient {
@@ -25,10 +25,26 @@ export class AMQPWebSocketClient extends AMQPBaseClient {
   /**
    * @param url to the websocket endpoint, example: wss://server/ws/amqp
    */
-  constructor(url: string, vhost?: string, username?: string, password?: string, name?: string, frameMax?: number, heartbeat?: number);
-  constructor(init: AMQPWebSocketInit);
-  constructor(url: string | AMQPWebSocketInit, vhost = "/", username = "guest", password = "guest", name?: string, frameMax = 4096, heartbeat = 0) {
-    if (typeof url === 'object') {
+  constructor(
+    url: string,
+    vhost?: string,
+    username?: string,
+    password?: string,
+    name?: string,
+    frameMax?: number,
+    heartbeat?: number,
+  )
+  constructor(init: AMQPWebSocketInit)
+  constructor(
+    url: string | AMQPWebSocketInit,
+    vhost = "/",
+    username = "guest",
+    password = "guest",
+    name?: string,
+    frameMax = 4096,
+    heartbeat = 0,
+  ) {
+    if (typeof url === "object") {
       vhost = url.vhost ?? vhost
       username = url.username ?? username
       password = url.password ?? password
@@ -37,7 +53,15 @@ export class AMQPWebSocketClient extends AMQPBaseClient {
       heartbeat = url.heartbeat ?? heartbeat
       url = url.url
     }
-    super(vhost, username, password, name, AMQPWebSocketClient.platform(), frameMax, heartbeat)
+    super(
+      vhost,
+      username,
+      password,
+      name,
+      AMQPWebSocketClient.platform(),
+      frameMax,
+      heartbeat,
+    )
     this.url = url
     this.frameBuffer = new Uint8Array(frameMax)
   }
@@ -52,14 +76,19 @@ export class AMQPWebSocketClient extends AMQPBaseClient {
     socket.onmessage = this.handleMessage.bind(this)
     return new Promise((resolve, reject) => {
       this.connectPromise = [resolve, reject]
-      socket.addEventListener('close', reject)
-      socket.addEventListener('error', reject)
-      socket.addEventListener('open', () => {
-        socket.addEventListener('error', (ev: Event) => this.onerror(new AMQPError(ev.toString(), this)))
-        socket.addEventListener('close', (ev: CloseEvent) => {
+      socket.addEventListener("close", reject)
+      socket.addEventListener("error", reject)
+      socket.addEventListener("open", () => {
+        socket.addEventListener("error", (ev: Event) =>
+          this.onerror(new AMQPError(ev.toString(), this)),
+        )
+        socket.addEventListener("close", (ev: CloseEvent) => {
           const clientClosed = this.closed
           this.closed = true
-          if (!ev.wasClean && !clientClosed) this.onerror(new AMQPError(`connection not cleanly closed (${ev.code})`, this))
+          if (!ev.wasClean && !clientClosed)
+            this.onerror(
+              new AMQPError(`connection not cleanly closed (${ev.code})`, this),
+            )
         })
         socket.send(new Uint8Array([65, 77, 81, 80, 0, 0, 9, 1]))
       })
@@ -93,7 +122,7 @@ export class AMQPWebSocketClient extends AMQPBaseClient {
   }
 
   private handleMessage(event: MessageEvent) {
-    const buf : ArrayBuffer = event.data
+    const buf: ArrayBuffer = event.data
     const bufView = new DataView(buf)
     // A socket read can contain 0 or more frames, so find frame boundries
     let bufPos = 0
@@ -104,7 +133,8 @@ export class AMQPWebSocketClient extends AMQPBaseClient {
         if (this.framePos !== 0) {
           const len = 7 - this.framePos
           this.frameBuffer.set(new Uint8Array(buf, bufPos, len), this.framePos)
-          this.frameSize = new DataView(this.frameBuffer.buffer).getInt32(bufPos + 3) + 8
+          this.frameSize =
+            new DataView(this.frameBuffer.buffer).getInt32(bufPos + 3) + 8
           this.framePos += len
           bufPos += len
           continue
@@ -132,7 +162,10 @@ export class AMQPWebSocketClient extends AMQPBaseClient {
       const leftOfFrame = this.frameSize - this.framePos
       const copyBytes = Math.min(leftOfFrame, buf.byteLength - bufPos)
 
-      this.frameBuffer.set(new Uint8Array(buf, bufPos, copyBytes), this.framePos)
+      this.frameBuffer.set(
+        new Uint8Array(buf, bufPos, copyBytes),
+        this.framePos,
+      )
       this.framePos += copyBytes
       bufPos += copyBytes
       if (this.framePos === this.frameSize) {
@@ -144,8 +177,7 @@ export class AMQPWebSocketClient extends AMQPBaseClient {
   }
 
   static platform(): string {
-    if (typeof(window) !== 'undefined')
-      return window.navigator.userAgent
+    if (typeof window !== "undefined") return window.navigator.userAgent
     else
       return `${process.release.name} ${process.version} ${process.platform} ${process.arch}`
   }

@@ -1,10 +1,10 @@
-import { AMQPBaseClient } from './amqp-base-client.js'
-import { AMQPError } from './amqp-error.js'
-import type { AMQPTlsOptions } from './amqp-tls-options.js'
-import { AMQPView } from './amqp-view.js'
-import { Buffer } from 'buffer'
-import * as net from 'net'
-import * as tls from 'tls'
+import { AMQPBaseClient } from "./amqp-base-client.js"
+import { AMQPError } from "./amqp-error.js"
+import type { AMQPTlsOptions } from "./amqp-tls-options.js"
+import { AMQPView } from "./amqp-view.js"
+import { Buffer } from "buffer"
+import * as net from "net"
+import * as tls from "tls"
 
 /**
  * AMQP 0-9-1 client over TCP socket.
@@ -33,7 +33,16 @@ export class AMQPClient extends AMQPBaseClient {
     const heartbeat = parseInt(u.searchParams.get("heartbeat") || "0")
     const channelMax = parseInt(u.searchParams.get("channelMax") || "0")
     const platform = `${process.release.name} ${process.version} ${process.platform} ${process.arch}`
-    super(vhost, username, password, name, platform, frameMax, heartbeat, channelMax)
+    super(
+      vhost,
+      username,
+      password,
+      name,
+      platform,
+      frameMax,
+      heartbeat,
+      channelMax,
+    )
     this.tls = u.protocol === "amqps:"
     this.tlsOptions = tlsOptions
     this.host = u.hostname || "localhost"
@@ -42,25 +51,25 @@ export class AMQPClient extends AMQPBaseClient {
     this.framePos = 0
     this.frameSize = 0
     this.frameBuffer = Buffer.allocUnsafe(frameMax)
-    Object.defineProperty(this, 'frameBuffer', {
-      enumerable: false // hide it from console.log etc.
+    Object.defineProperty(this, "frameBuffer", {
+      enumerable: false, // hide it from console.log etc.
     })
   }
 
   override connect(): Promise<AMQPBaseClient> {
     const socket = this.connectSocket()
-    Object.defineProperty(this, 'socket', {
+    Object.defineProperty(this, "socket", {
       value: socket,
       writable: true,
-      enumerable: false // hide it from console.log etc.
+      enumerable: false, // hide it from console.log etc.
     })
     // enable socket read timeout during connection establishment
     socket.setTimeout((this.heartbeat || 60) * 1000)
     // enable TCP keepalive if AMQP heartbeats are disabled
     if (this.heartbeat === 0) socket.setKeepAlive(true, 60)
     return new Promise((resolve, reject) => {
-      socket.on('timeout', () => reject(new AMQPError("timeout", this)))
-      socket.on('error', (err) => reject(new AMQPError(err.message, this)))
+      socket.on("timeout", () => reject(new AMQPError("timeout", this)))
+      socket.on("error", (err) => reject(new AMQPError(err.message, this)))
       const onConnect = (conn: AMQPBaseClient) => {
         socket.setTimeout(this.heartbeat * 1000) // reset timeout if heartbeats are disabled
         resolve(conn)
@@ -75,17 +84,21 @@ export class AMQPClient extends AMQPBaseClient {
       port: this.port,
       servername: net.isIP(this.host) ? "" : this.host,
       rejectUnauthorized: !this.insecure,
-      ...this.tlsOptions
+      ...this.tlsOptions,
     }
-    const sendStart = () => this.send(new Uint8Array([65, 77, 81, 80, 0, 0, 9, 1]))
-    const conn = this.tls ? tls.connect(options, sendStart) : net.connect(options, sendStart)
-    conn.on('data', this.onRead.bind(this))
-    conn.on('connect', () => {
-      conn.on('error', (err) => this.onerror(new AMQPError(err.message, this)))
-      conn.on('close', (hadError: boolean) => {
+    const sendStart = () =>
+      this.send(new Uint8Array([65, 77, 81, 80, 0, 0, 9, 1]))
+    const conn = this.tls
+      ? tls.connect(options, sendStart)
+      : net.connect(options, sendStart)
+    conn.on("data", this.onRead.bind(this))
+    conn.on("connect", () => {
+      conn.on("error", (err) => this.onerror(new AMQPError(err.message, this)))
+      conn.on("close", (hadError: boolean) => {
         const clientClosed = this.closed
         this.closed = true
-        if (!hadError && !clientClosed) this.onerror(new AMQPError("Socket closed", this))
+        if (!hadError && !clientClosed)
+          this.onerror(new AMQPError("Socket closed", this))
       })
     })
     return conn
@@ -100,8 +113,17 @@ export class AMQPClient extends AMQPBaseClient {
       if (this.frameSize === 0) {
         // first 7 bytes of a frame was split over two reads, this reads the second part
         if (this.framePos !== 0) {
-          const copied = buf.copy(this.frameBuffer, this.framePos, bufPos, bufPos + 7 - this.framePos)
-          if (copied === 0) throw new AMQPError(`Copied 0 bytes framePos=${this.framePos} bufPos=${bufPos} bytesWritten=${bufLen}`, this)
+          const copied = buf.copy(
+            this.frameBuffer,
+            this.framePos,
+            bufPos,
+            bufPos + 7 - this.framePos,
+          )
+          if (copied === 0)
+            throw new AMQPError(
+              `Copied 0 bytes framePos=${this.framePos} bufPos=${bufPos} bytesWritten=${bufLen}`,
+              this,
+            )
           this.frameSize = this.frameBuffer.readInt32BE(bufPos + 3) + 8
           this.framePos += copied
           bufPos += copied
@@ -109,8 +131,17 @@ export class AMQPClient extends AMQPBaseClient {
         }
         // frame header is split over reads, copy to frameBuffer
         if (bufPos + 3 + 4 > bufLen) {
-          const copied = buf.copy(this.frameBuffer, this.framePos, bufPos, bufLen)
-          if (copied === 0) throw new AMQPError(`Copied 0 bytes framePos=${this.framePos} bufPos=${bufPos} bytesWritten=${bufLen}`, this)
+          const copied = buf.copy(
+            this.frameBuffer,
+            this.framePos,
+            bufPos,
+            bufLen,
+          )
+          if (copied === 0)
+            throw new AMQPError(
+              `Copied 0 bytes framePos=${this.framePos} bufPos=${bufPos} bytesWritten=${bufLen}`,
+              this,
+            )
           this.framePos += copied
           break
         }
@@ -119,7 +150,11 @@ export class AMQPClient extends AMQPBaseClient {
 
         // avoid copying if the whole frame is in the read buffer
         if (bufLen - bufPos >= this.frameSize) {
-          const view = new AMQPView(buf.buffer, buf.byteOffset + bufPos, this.frameSize)
+          const view = new AMQPView(
+            buf.buffer,
+            buf.byteOffset + bufPos,
+            this.frameSize,
+          )
           this.parseFrames(view)
           bufPos += this.frameSize
           this.frameSize = 0
@@ -129,8 +164,17 @@ export class AMQPClient extends AMQPBaseClient {
 
       const leftOfFrame = this.frameSize - this.framePos
       const copyBytes = Math.min(leftOfFrame, bufLen - bufPos)
-      const copied = buf.copy(this.frameBuffer, this.framePos, bufPos, bufPos + copyBytes)
-      if (copied === 0) throw new AMQPError(`Copied 0 bytes, please report this bug, frameSize=${this.frameSize} framePos=${this.framePos} bufPos=${bufPos} copyBytes=${copyBytes} bytesWritten=${bufLen}`, this)
+      const copied = buf.copy(
+        this.frameBuffer,
+        this.framePos,
+        bufPos,
+        bufPos + copyBytes,
+      )
+      if (copied === 0)
+        throw new AMQPError(
+          `Copied 0 bytes, please report this bug, frameSize=${this.frameSize} framePos=${this.framePos} bufPos=${bufPos} copyBytes=${copyBytes} bytesWritten=${bufLen}`,
+          this,
+        )
       this.framePos += copied
       bufPos += copied
       if (this.framePos === this.frameSize) {
@@ -152,7 +196,9 @@ export class AMQPClient extends AMQPBaseClient {
       if (!this.socket)
         return reject(new AMQPError("Socket not connected", this))
       try {
-        this.socket.write(bytes, undefined, (err) => err ? reject(err) : resolve())
+        this.socket.write(bytes, undefined, (err) =>
+          err ? reject(err) : resolve(),
+        )
       } catch (err) {
         this.closeSocket()
         reject(err)

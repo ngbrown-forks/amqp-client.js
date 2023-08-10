@@ -1,10 +1,10 @@
-import { AMQPError } from './amqp-error.js'
-import { AMQPView } from './amqp-view.js'
-import { AMQPQueue } from './amqp-queue.js'
-import { AMQPConsumer } from './amqp-consumer.js'
-import type { AMQPMessage } from './amqp-message.js'
-import type { AMQPBaseClient } from './amqp-base-client.js'
-import type { AMQPProperties } from './amqp-properties.js'
+import { AMQPError } from "./amqp-error.js"
+import { AMQPView } from "./amqp-view.js"
+import { AMQPQueue } from "./amqp-queue.js"
+import { AMQPConsumer } from "./amqp-consumer.js"
+import type { AMQPMessage } from "./amqp-message.js"
+import type { AMQPBaseClient } from "./amqp-base-client.js"
+import type { AMQPProperties } from "./amqp-properties.js"
 
 /**
  * Represents an AMQP Channel. Almost all actions in AMQP are performed on a Channel.
@@ -14,7 +14,11 @@ export class AMQPChannel {
   readonly id: number
   readonly consumers = new Map<string, AMQPConsumer>()
   private rpcQueue: Promise<unknown> = Promise.resolve(true)
-  private readonly unconfirmedPublishes: [number, (confirmId: number) => void, (err?: Error) => void][] = []
+  private readonly unconfirmedPublishes: [
+    number,
+    (confirmId: number) => void,
+    (err?: Error) => void,
+  ][] = []
   closed = false
   confirmId = 0
   delivery?: AMQPMessage
@@ -28,40 +32,57 @@ export class AMQPChannel {
   constructor(connection: AMQPBaseClient, id: number) {
     this.connection = connection
     this.id = id
-    this.onerror = (reason: string) => this.logger?.error(`channel ${this.id} closed: ${reason}`)
+    this.onerror = (reason: string) =>
+      this.logger?.error(`channel ${this.id} closed: ${reason}`)
   }
 
   private get logger() {
-    return this.connection.logger;
+    return this.connection.logger
   }
 
   open(): Promise<AMQPChannel> {
     let j = 0
     const channelOpen = new AMQPView(new ArrayBuffer(13))
     // type: method
-    channelOpen.setUint8(j, 1); j += 1
+    channelOpen.setUint8(j, 1)
+    j += 1
     // channel id
-    channelOpen.setUint16(j, this.id); j += 2
+    channelOpen.setUint16(j, this.id)
+    j += 2
     // frameSize
-    channelOpen.setUint32(j, 5); j += 4
+    channelOpen.setUint32(j, 5)
+    j += 4
     // class: channel
-    channelOpen.setUint16(j, 20); j += 2
+    channelOpen.setUint16(j, 20)
+    j += 2
     // method: open
-    channelOpen.setUint16(j, 10); j += 2
+    channelOpen.setUint16(j, 10)
+    j += 2
     // reserved1
-    channelOpen.setUint8(j, 0); j += 1
+    channelOpen.setUint8(j, 0)
+    j += 1
     // frame end byte
-    channelOpen.setUint8(j, 206); j += 1
+    channelOpen.setUint8(j, 206)
+    j += 1
     return this.sendRpc(channelOpen, j)
   }
 
   /**
    * Declare a queue and return an AMQPQueue instance.
    */
-  queue(name = "", {passive = false, durable = name !== "", autoDelete = name === "", exclusive = name === ""} = {} as QueueParams, args = {}): Promise<AMQPQueue> {
+  queue(
+    name = "",
+    {
+      passive = false,
+      durable = name !== "",
+      autoDelete = name === "",
+      exclusive = name === "",
+    } = {} as QueueParams,
+    args = {},
+  ): Promise<AMQPQueue> {
     return new Promise((resolve, reject) => {
-      this.queueDeclare(name, {passive, durable, autoDelete, exclusive}, args)
-        .then(({name}) => resolve(new AMQPQueue(this, name)))
+      this.queueDeclare(name, { passive, durable, autoDelete, exclusive }, args)
+        .then(({ name }) => resolve(new AMQPQueue(this, name)))
         .catch(reject)
     })
   }
@@ -92,25 +113,34 @@ export class AMQPChannel {
     let j = 0
     const frame = new AMQPView(new ArrayBuffer(512))
     // type: method
-    frame.setUint8(j, 1); j += 1
+    frame.setUint8(j, 1)
+    j += 1
     // channel
-    frame.setUint16(j, this.id); j += 2
+    frame.setUint16(j, this.id)
+    j += 2
     // frameSize
-    frame.setUint32(j, 0); j += 4
+    frame.setUint32(j, 0)
+    j += 4
     // class: channel
-    frame.setUint16(j, 20); j += 2
+    frame.setUint16(j, 20)
+    j += 2
     // method: close
-    frame.setUint16(j, 40); j += 2
+    frame.setUint16(j, 40)
+    j += 2
     // reply code
-    frame.setUint16(j, code); j += 2
+    frame.setUint16(j, code)
+    j += 2
     // reply reason
     j += frame.setShortString(j, reason)
     // failing-class-id
-    frame.setUint16(j, 0); j += 2
+    frame.setUint16(j, 0)
+    j += 2
     // failing-method-id
-    frame.setUint16(j, 0); j += 2
+    frame.setUint16(j, 0)
+    j += 2
     // frame end byte
-    frame.setUint8(j, 206); j += 1
+    frame.setUint8(j, 206)
+    j += 1
     // update frameSize
     frame.setUint32(3, j - 8)
     return this.sendRpc(frame, j)
@@ -123,28 +153,36 @@ export class AMQPChannel {
    * @param [param.noAck=true] - if message is removed from the server upon delivery, or have to be acknowledged
    * @return - returns null if the queue is empty otherwise a single message
    */
-  basicGet(queue: string, { noAck = true } = {}): Promise<AMQPMessage|null> {
+  basicGet(queue: string, { noAck = true } = {}): Promise<AMQPMessage | null> {
     if (this.closed) return this.rejectClosed()
     let j = 0
     const frame = new AMQPView(new ArrayBuffer(512))
     // type: method
-    frame.setUint8(j, 1); j += 1
+    frame.setUint8(j, 1)
+    j += 1
     // channel: 1
-    frame.setUint16(j, this.id); j += 2
+    frame.setUint16(j, this.id)
+    j += 2
     // frameSize
-    frame.setUint32(j, 11); j += 4
+    frame.setUint32(j, 11)
+    j += 4
     // class: basic
-    frame.setUint16(j, 60); j += 2
+    frame.setUint16(j, 60)
+    j += 2
     // method: get
-    frame.setUint16(j, 70); j += 2
+    frame.setUint16(j, 70)
+    j += 2
     // reserved1
-    frame.setUint16(j, 0); j += 2
+    frame.setUint16(j, 0)
+    j += 2
     // queue
     j += frame.setShortString(j, queue)
     // noAck
-    frame.setUint8(j, noAck ? 1 : 0); j += 1
+    frame.setUint8(j, noAck ? 1 : 0)
+    j += 1
     // frame end byte
-    frame.setUint8(j, 206); j += 1
+    frame.setUint8(j, 206)
+    j += 1
     // update frameSize
     frame.setUint32(3, j - 8)
     return this.sendRpc(frame, j)
@@ -160,48 +198,62 @@ export class AMQPChannel {
    * @param [param.args={}] - custom arguments
    * @param {function(AMQPMessage) : void} callback - will be called for each message delivered to this consumer
    */
-  basicConsume(queue: string, {tag = "", noAck = true, exclusive = false, args = {}} = {}, callback: (msg: AMQPMessage) => void): Promise<AMQPConsumer> {
+  basicConsume(
+    queue: string,
+    { tag = "", noAck = true, exclusive = false, args = {} } = {},
+    callback: (msg: AMQPMessage) => void,
+  ): Promise<AMQPConsumer> {
     if (this.closed) return this.rejectClosed()
     let j = 0
     const noWait = false
     const noLocal = false
     const frame = new AMQPView(new ArrayBuffer(4096))
     // type: method
-    frame.setUint8(j, 1); j += 1
+    frame.setUint8(j, 1)
+    j += 1
     // channel: 1
-    frame.setUint16(j, this.id); j += 2
+    frame.setUint16(j, this.id)
+    j += 2
     // frameSize
-    frame.setUint32(j, 0); j += 4
+    frame.setUint32(j, 0)
+    j += 4
     // class: basic
-    frame.setUint16(j, 60); j += 2
+    frame.setUint16(j, 60)
+    j += 2
     // method: consume
-    frame.setUint16(j, 20); j += 2
+    frame.setUint16(j, 20)
+    j += 2
     // reserved1
-    frame.setUint16(j, 0); j += 2
+    frame.setUint16(j, 0)
+    j += 2
     // queue
     j += frame.setShortString(j, queue)
     // tag
     j += frame.setShortString(j, tag)
     let bits = 0
-    if (noLocal)   bits = bits | (1 << 0)
-    if (noAck)     bits = bits | (1 << 1)
+    if (noLocal) bits = bits | (1 << 0)
+    if (noAck) bits = bits | (1 << 1)
     if (exclusive) bits = bits | (1 << 2)
-    if (noWait)    bits = bits | (1 << 3)
+    if (noWait) bits = bits | (1 << 3)
     // noLocal/noAck/exclusive/noWait
-    frame.setUint8(j, bits); j += 1
+    frame.setUint8(j, bits)
+    j += 1
     // arguments table
     j += frame.setTable(j, args)
     // frame end byte
-    frame.setUint8(j, 206); j += 1
+    frame.setUint8(j, 206)
+    j += 1
     // update frameSize
     frame.setUint32(3, j - 8)
 
     return new Promise((resolve, reject) => {
-      this.sendRpc(frame, j).then((consumerTag) =>  {
-        const consumer = new AMQPConsumer(this, consumerTag, callback)
-        this.consumers.set(consumerTag, consumer)
-        resolve(consumer)
-      }).catch(reject)
+      this.sendRpc(frame, j)
+        .then((consumerTag) => {
+          const consumer = new AMQPConsumer(this, consumerTag, callback)
+          this.consumers.set(consumerTag, consumer)
+          resolve(consumer)
+        })
+        .catch(reject)
     })
   }
 
@@ -215,33 +267,42 @@ export class AMQPChannel {
     let j = 0
     const frame = new AMQPView(new ArrayBuffer(512))
     // type: method
-    frame.setUint8(j, 1); j += 1
+    frame.setUint8(j, 1)
+    j += 1
     // channel: 1
-    frame.setUint16(j, this.id); j += 2
+    frame.setUint16(j, this.id)
+    j += 2
     // frameSize
-    frame.setUint32(j, 0); j += 4
+    frame.setUint32(j, 0)
+    j += 4
     // class: basic
-    frame.setUint16(j, 60); j += 2
+    frame.setUint16(j, 60)
+    j += 2
     // method: cancel
-    frame.setUint16(j, 30); j += 2
+    frame.setUint16(j, 30)
+    j += 2
     // tag
     j += frame.setShortString(j, tag)
     // noWait
-    frame.setUint8(j, noWait ? 1 : 0); j += 1
+    frame.setUint8(j, noWait ? 1 : 0)
+    j += 1
     // frame end byte
-    frame.setUint8(j, 206); j += 1
+    frame.setUint8(j, 206)
+    j += 1
     // update frameSize
     frame.setUint32(3, j - 8)
 
     return new Promise((resolve, reject) => {
-      this.sendRpc(frame, j).then((consumerTag) => {
-        const consumer = this.consumers.get(consumerTag)
-        if (consumer) {
-          consumer.setClosed()
-          this.consumers.delete(consumerTag)
-        }
-        resolve(this)
-      }).catch(reject)
+      this.sendRpc(frame, j)
+        .then((consumerTag) => {
+          const consumer = this.consumers.get(consumerTag)
+          if (consumer) {
+            consumer.setClosed()
+            this.consumers.delete(consumerTag)
+          }
+          resolve(this)
+        })
+        .catch(reject)
     })
   }
 
@@ -255,19 +316,27 @@ export class AMQPChannel {
     let j = 0
     const frame = new AMQPView(new ArrayBuffer(21))
     // type: method
-    frame.setUint8(j, 1); j += 1
+    frame.setUint8(j, 1)
+    j += 1
     // channel
-    frame.setUint16(j, this.id); j += 2
+    frame.setUint16(j, this.id)
+    j += 2
     // frameSize
-    frame.setUint32(j, 13); j += 4
+    frame.setUint32(j, 13)
+    j += 4
     // class: basic
-    frame.setUint16(j, 60); j += 2
+    frame.setUint16(j, 60)
+    j += 2
     // method: ack
-    frame.setUint16(j, 80); j += 2
-    frame.setUint64(j, deliveryTag); j += 8
-    frame.setUint8(j, multiple ? 1 : 0); j += 1
+    frame.setUint16(j, 80)
+    j += 2
+    frame.setUint64(j, deliveryTag)
+    j += 8
+    frame.setUint8(j, multiple ? 1 : 0)
+    j += 1
     // frame end byte
-    frame.setUint8(j, 206); j += 1
+    frame.setUint8(j, 206)
+    j += 1
     return this.connection.send(new Uint8Array(frame.buffer, 0, 21))
   }
 
@@ -277,27 +346,39 @@ export class AMQPChannel {
    * @param [requeue=false] - if the message should be requeued or removed
    * @param [multiple=false] - batch confirm all messages up to this delivery tag
    */
-  basicNack(deliveryTag: number, requeue = false, multiple = false): Promise<void> {
+  basicNack(
+    deliveryTag: number,
+    requeue = false,
+    multiple = false,
+  ): Promise<void> {
     if (this.closed) return this.rejectClosed()
     let j = 0
     const frame = new AMQPView(new ArrayBuffer(21))
     // type: method
-    frame.setUint8(j, 1); j += 1
+    frame.setUint8(j, 1)
+    j += 1
     // channel
-    frame.setUint16(j, this.id); j += 2
+    frame.setUint16(j, this.id)
+    j += 2
     // frameSize
-    frame.setUint32(j, 13); j += 4
+    frame.setUint32(j, 13)
+    j += 4
     // class: basic
-    frame.setUint16(j, 60); j += 2
+    frame.setUint16(j, 60)
+    j += 2
     // method: nack
-    frame.setUint16(j, 120); j += 2
-    frame.setUint64(j, deliveryTag); j += 8
+    frame.setUint16(j, 120)
+    j += 2
+    frame.setUint64(j, deliveryTag)
+    j += 8
     let bits = 0
     if (multiple) bits = bits | (1 << 0)
-    if (requeue)  bits = bits | (1 << 1)
-    frame.setUint8(j, bits); j += 1
+    if (requeue) bits = bits | (1 << 1)
+    frame.setUint8(j, bits)
+    j += 1
     // frame end byte
-    frame.setUint8(j, 206); j += 1
+    frame.setUint8(j, 206)
+    j += 1
     return this.connection.send(new Uint8Array(frame.buffer, 0, 21))
   }
 
@@ -311,19 +392,27 @@ export class AMQPChannel {
     let j = 0
     const frame = new AMQPView(new ArrayBuffer(21))
     // type: method
-    frame.setUint8(j, 1); j += 1
+    frame.setUint8(j, 1)
+    j += 1
     // channel
-    frame.setUint16(j, this.id); j += 2
+    frame.setUint16(j, this.id)
+    j += 2
     // frameSize
-    frame.setUint32(j, 13); j += 4
+    frame.setUint32(j, 13)
+    j += 4
     // class: basic
-    frame.setUint16(j, 60); j += 2
+    frame.setUint16(j, 60)
+    j += 2
     // method: reject
-    frame.setUint16(j, 90); j += 2
-    frame.setUint64(j, deliveryTag); j += 8
-    frame.setUint8(j, requeue ? 1 : 0); j += 1
+    frame.setUint16(j, 90)
+    j += 2
+    frame.setUint64(j, deliveryTag)
+    j += 8
+    frame.setUint8(j, requeue ? 1 : 0)
+    j += 1
     // frame end byte
-    frame.setUint8(j, 206); j += 1
+    frame.setUint8(j, 206)
+    j += 1
     return this.connection.send(new Uint8Array(frame.buffer, 0, 21))
   }
 
@@ -336,18 +425,25 @@ export class AMQPChannel {
     let j = 0
     const frame = new AMQPView(new ArrayBuffer(13))
     // type: method
-    frame.setUint8(j, 1); j += 1
+    frame.setUint8(j, 1)
+    j += 1
     // channel
-    frame.setUint16(j, this.id); j += 2
+    frame.setUint16(j, this.id)
+    j += 2
     // frameSize
-    frame.setUint32(j, 5); j += 4
+    frame.setUint32(j, 5)
+    j += 4
     // class: basic
-    frame.setUint16(j, 60); j += 2
+    frame.setUint16(j, 60)
+    j += 2
     // method: recover
-    frame.setUint16(j, 110); j += 2
-    frame.setUint8(j, requeue ? 1 : 0); j += 1
+    frame.setUint16(j, 110)
+    j += 2
+    frame.setUint8(j, requeue ? 1 : 0)
+    j += 1
     // frame end byte
-    frame.setUint8(j, 206); j += 1
+    frame.setUint8(j, 206)
+    j += 1
     return this.sendRpc(frame, j)
   }
 
@@ -361,12 +457,24 @@ export class AMQPChannel {
    * @param [immediate] - if the message should be returned if it can't be delivered to a consumer immediately (not supported in RabbitMQ)
    * @return - fulfilled when the message is enqueue on the socket, or if publish confirm is enabled when the message is confirmed by the server
    */
-  async basicPublish(exchange: string, routingKey: string, data: string|Uint8Array|ArrayBuffer|Buffer|null, properties: AMQPProperties = {}, mandatory = false, immediate = false): Promise<number> {
+  async basicPublish(
+    exchange: string,
+    routingKey: string,
+    data: string | Uint8Array | ArrayBuffer | Buffer | null,
+    properties: AMQPProperties = {},
+    mandatory = false,
+    immediate = false,
+  ): Promise<number> {
     if (this.closed) return this.rejectClosed()
     if (this.connection.blocked)
-      return Promise.reject(new AMQPError(`Connection blocked by server: ${this.connection.blocked}`, this.connection))
+      return Promise.reject(
+        new AMQPError(
+          `Connection blocked by server: ${this.connection.blocked}`,
+          this.connection,
+        ),
+      )
 
-    let body : Uint8Array
+    let body: Uint8Array
     if (typeof Buffer !== "undefined" && data instanceof Buffer) {
       body = data
     } else if (data instanceof Uint8Array) {
@@ -383,19 +491,26 @@ export class AMQPChannel {
 
     let j = 0
     // get a buffer from the pool or create a new, it will later be returned to the pool for reuse
-    const buffer = this.connection.bufferPool.pop() || new AMQPView(new ArrayBuffer(this.connection.frameMax))
+    const buffer =
+      this.connection.bufferPool.pop() ||
+      new AMQPView(new ArrayBuffer(this.connection.frameMax))
     // type: method
-    buffer.setUint8(j, 1); j += 1
+    buffer.setUint8(j, 1)
+    j += 1
     // channel
-    buffer.setUint16(j, this.id); j += 2
+    buffer.setUint16(j, this.id)
+    j += 2
     // frame size, update later
     j += 4
     // class: basic
-    buffer.setUint16(j, 60); j += 2
+    buffer.setUint16(j, 60)
+    j += 2
     // method: publish
-    buffer.setUint16(j, 40); j += 2
+    buffer.setUint16(j, 40)
+    j += 2
     // reserved1
-    buffer.setUint16(j, 0); j += 2
+    buffer.setUint16(j, 0)
+    j += 2
     // exchange
     j += buffer.setShortString(j, exchange)
     // routing key
@@ -404,31 +519,40 @@ export class AMQPChannel {
     if (mandatory) bits = bits | (1 << 0)
     if (immediate) bits = bits | (1 << 1)
     // mandatory/immediate
-    buffer.setUint8(j, bits); j += 1
+    buffer.setUint8(j, bits)
+    j += 1
     // frame end byte
-    buffer.setUint8(j, 206); j += 1
+    buffer.setUint8(j, 206)
+    j += 1
     // update frameSize
     buffer.setUint32(3, j - 8)
 
     const headerStart = j
     // type: header
-    buffer.setUint8(j, 2); j += 1
+    buffer.setUint8(j, 2)
+    j += 1
     // channel
-    buffer.setUint16(j, this.id); j += 2
+    buffer.setUint16(j, this.id)
+    j += 2
     // frame size, update later
     j += 4
     // class: basic
-    buffer.setUint16(j, 60); j += 2
+    buffer.setUint16(j, 60)
+    j += 2
     // weight
-    buffer.setUint16(j, 0); j += 2
+    buffer.setUint16(j, 0)
+    j += 2
     // bodysize (upper 32 of 64 bits)
-    buffer.setUint32(j, 0); j += 4
+    buffer.setUint32(j, 0)
+    j += 4
     // bodysize
-    buffer.setUint32(j, body.byteLength); j += 4
+    buffer.setUint32(j, body.byteLength)
+    j += 4
     // properties
-    j += buffer.setProperties(j, properties);
+    j += buffer.setProperties(j, properties)
     // frame end byte
-    buffer.setUint8(j, 206); j += 1
+    buffer.setUint8(j, 206)
+    j += 1
     // update frameSize
     buffer.setUint32(headerStart + 3, j - headerStart - 8)
 
@@ -442,21 +566,29 @@ export class AMQPChannel {
     }
 
     // split body into multiple frames if body > frameMax
-    for (let bodyPos = 0; bodyPos < body.byteLength;) {
-      const frameSize = Math.min(body.byteLength - bodyPos, buffer.byteLength - 8 - j) // frame overhead is 8 bytes
+    for (let bodyPos = 0; bodyPos < body.byteLength; ) {
+      const frameSize = Math.min(
+        body.byteLength - bodyPos,
+        buffer.byteLength - 8 - j,
+      ) // frame overhead is 8 bytes
       const dataSlice = body.subarray(bodyPos, bodyPos + frameSize)
 
       // type: body
-      buffer.setUint8(j, 3); j += 1
+      buffer.setUint8(j, 3)
+      j += 1
       // channel
-      buffer.setUint16(j, this.id); j += 2
+      buffer.setUint16(j, this.id)
+      j += 2
       // frameSize
-      buffer.setUint32(j, frameSize); j += 4
+      buffer.setUint32(j, frameSize)
+      j += 4
       const bodyView = new Uint8Array(buffer.buffer, j, frameSize)
       // body content
-      bodyView.set(dataSlice); j += frameSize
+      bodyView.set(dataSlice)
+      j += frameSize
       // frame end byte
-      buffer.setUint8(j, 206); j += 1
+      buffer.setUint8(j, 206)
+      j += 1
       await this.connection.send(new Uint8Array(buffer.buffer, 0, j))
       bodyPos += frameSize
       j = 0
@@ -466,7 +598,9 @@ export class AMQPChannel {
     // the promise on the queue will be fullfilled by the read loop when an ack/nack
     // comes from the server
     if (this.confirmId) {
-      return new Promise((resolve, reject) => this.unconfirmedPublishes.push([this.confirmId++, resolve, reject]))
+      return new Promise((resolve, reject) =>
+        this.unconfirmedPublishes.push([this.confirmId++, resolve, reject]),
+      )
     } else {
       return Promise.resolve(0)
     }
@@ -480,28 +614,41 @@ export class AMQPChannel {
    * @param prefetchSize - number of bytes to limit to (not supported by RabbitMQ)
    * @param global - if the prefetch is limited to the channel, or if false to each consumer
    */
-  basicQos(prefetchCount: number, prefetchSize = 0, global = false): Promise<void> {
+  basicQos(
+    prefetchCount: number,
+    prefetchSize = 0,
+    global = false,
+  ): Promise<void> {
     if (this.closed) return this.rejectClosed()
     let j = 0
     const frame = new AMQPView(new ArrayBuffer(19))
     // type: method
-    frame.setUint8(j, 1); j += 1
+    frame.setUint8(j, 1)
+    j += 1
     // channel: 1
-    frame.setUint16(j, this.id); j += 2
+    frame.setUint16(j, this.id)
+    j += 2
     // frameSize
-    frame.setUint32(j, 11); j += 4
+    frame.setUint32(j, 11)
+    j += 4
     // class: basic
-    frame.setUint16(j, 60); j += 2
+    frame.setUint16(j, 60)
+    j += 2
     // method: qos
-    frame.setUint16(j, 10); j += 2
+    frame.setUint16(j, 10)
+    j += 2
     // prefetch size
-    frame.setUint32(j, prefetchSize); j += 4
+    frame.setUint32(j, prefetchSize)
+    j += 4
     // prefetch count
-    frame.setUint16(j, prefetchCount); j += 2
+    frame.setUint16(j, prefetchCount)
+    j += 2
     // glocal
-    frame.setUint8(j, global ? 1 : 0); j += 1
+    frame.setUint8(j, global ? 1 : 0)
+    j += 1
     // frame end byte
-    frame.setUint8(j, 206); j += 1
+    frame.setUint8(j, 206)
+    j += 1
     return this.sendRpc(frame, j)
   }
 
@@ -515,19 +662,26 @@ export class AMQPChannel {
     let j = 0
     const frame = new AMQPView(new ArrayBuffer(13))
     // type: method
-    frame.setUint8(j, 1); j += 1
+    frame.setUint8(j, 1)
+    j += 1
     // channel: 1
-    frame.setUint16(j, this.id); j += 2
+    frame.setUint16(j, this.id)
+    j += 2
     // frameSize
-    frame.setUint32(j, 5); j += 4
+    frame.setUint32(j, 5)
+    j += 4
     // class: channel
-    frame.setUint16(j, 20); j += 2
+    frame.setUint16(j, 20)
+    j += 2
     // method: flow
-    frame.setUint16(j, 20); j += 2
+    frame.setUint16(j, 20)
+    j += 2
     // active flow
-    frame.setUint8(j, active ? 1 : 0); j += 1
+    frame.setUint8(j, active ? 1 : 0)
+    j += 1
     // frame end byte
-    frame.setUint8(j, 206); j += 1
+    frame.setUint8(j, 206)
+    j += 1
     return this.sendRpc(frame, j)
   }
 
@@ -539,19 +693,26 @@ export class AMQPChannel {
     let j = 0
     const frame = new AMQPView(new ArrayBuffer(13))
     // type: method
-    frame.setUint8(j, 1); j += 1
+    frame.setUint8(j, 1)
+    j += 1
     // channel
-    frame.setUint16(j, this.id); j += 2
+    frame.setUint16(j, this.id)
+    j += 2
     // frame size
-    frame.setUint32(j, 5); j += 4
+    frame.setUint32(j, 5)
+    j += 4
     // class: confirm
-    frame.setUint16(j, 85); j += 2
+    frame.setUint16(j, 85)
+    j += 2
     // method: select
-    frame.setUint16(j, 10); j += 2
+    frame.setUint16(j, 10)
+    j += 2
     // noWait
-    frame.setUint8(j, 0); j += 1
+    frame.setUint8(j, 0)
+    j += 1
     // frame end byte
-    frame.setUint8(j, 206); j += 1
+    frame.setUint8(j, 206)
+    j += 1
     return this.sendRpc(frame, j) // parseFrames in base will set channel.confirmId = 0
   }
 
@@ -566,36 +727,53 @@ export class AMQPChannel {
    * @param args - optional custom queue arguments
    * @return fulfilled when confirmed by the server
    */
-  queueDeclare(name = "", { passive = false, durable = name !== "", autoDelete = name === "", exclusive = name === "" } = {} as QueueParams, args = {}): Promise<QueueOk> {
+  queueDeclare(
+    name = "",
+    {
+      passive = false,
+      durable = name !== "",
+      autoDelete = name === "",
+      exclusive = name === "",
+    } = {} as QueueParams,
+    args = {},
+  ): Promise<QueueOk> {
     if (this.closed) return this.rejectClosed()
     const noWait = false
     let j = 0
     const declare = new AMQPView(new ArrayBuffer(4096))
     // type: method
-    declare.setUint8(j, 1); j += 1
+    declare.setUint8(j, 1)
+    j += 1
     // channel: 1
-    declare.setUint16(j, this.id); j += 2
+    declare.setUint16(j, this.id)
+    j += 2
     // frameSize
-    declare.setUint32(j, 0); j += 4
+    declare.setUint32(j, 0)
+    j += 4
     // class: queue
-    declare.setUint16(j, 50); j += 2
+    declare.setUint16(j, 50)
+    j += 2
     // method: declare
-    declare.setUint16(j, 10); j += 2
+    declare.setUint16(j, 10)
+    j += 2
     // reserved1
-    declare.setUint16(j, 0); j += 2
+    declare.setUint16(j, 0)
+    j += 2
     // name
     j += declare.setShortString(j, name)
     let bits = 0
-    if (passive)    bits = bits | (1 << 0)
-    if (durable)    bits = bits | (1 << 1)
-    if (exclusive)  bits = bits | (1 << 2)
+    if (passive) bits = bits | (1 << 0)
+    if (durable) bits = bits | (1 << 1)
+    if (exclusive) bits = bits | (1 << 2)
     if (autoDelete) bits = bits | (1 << 3)
-    if (noWait)     bits = bits | (1 << 4)
-    declare.setUint8(j, bits); j += 1
+    if (noWait) bits = bits | (1 << 4)
+    declare.setUint8(j, bits)
+    j += 1
     // arguments
     j += declare.setTable(j, args)
     // frame end byte
-    declare.setUint8(j, 206); j += 1
+    declare.setUint8(j, 206)
+    j += 1
     // update frameSize
     declare.setUint32(3, j - 8)
     return this.sendRpc(declare, j)
@@ -608,32 +786,43 @@ export class AMQPChannel {
    * @param [params.ifUnused=false] - only delete if the queue doesn't have any consumers
    * @param [params.ifEmpty=false] - only delete if the queue is empty
    */
-  queueDelete(name = "", { ifUnused = false, ifEmpty = false } = {}): Promise<MessageCount> {
+  queueDelete(
+    name = "",
+    { ifUnused = false, ifEmpty = false } = {},
+  ): Promise<MessageCount> {
     if (this.closed) return this.rejectClosed()
     const noWait = false
     let j = 0
     const frame = new AMQPView(new ArrayBuffer(512))
     // type: method
-    frame.setUint8(j, 1); j += 1
+    frame.setUint8(j, 1)
+    j += 1
     // channel: 1
-    frame.setUint16(j, this.id); j += 2
+    frame.setUint16(j, this.id)
+    j += 2
     // frameSize
-    frame.setUint32(j, 0); j += 4
+    frame.setUint32(j, 0)
+    j += 4
     // class: queue
-    frame.setUint16(j, 50); j += 2
+    frame.setUint16(j, 50)
+    j += 2
     // method: delete
-    frame.setUint16(j, 40); j += 2
+    frame.setUint16(j, 40)
+    j += 2
     // reserved1
-    frame.setUint16(j, 0); j += 2
+    frame.setUint16(j, 0)
+    j += 2
     // name
     j += frame.setShortString(j, name)
     let bits = 0
     if (ifUnused) bits = bits | (1 << 0)
-    if (ifEmpty)  bits = bits | (1 << 1)
-    if (noWait)   bits = bits | (1 << 2)
-    frame.setUint8(j, bits); j += 1
+    if (ifEmpty) bits = bits | (1 << 1)
+    if (noWait) bits = bits | (1 << 2)
+    frame.setUint8(j, bits)
+    j += 1
     // frame end byte
-    frame.setUint8(j, 206); j += 1
+    frame.setUint8(j, 206)
+    j += 1
     // update frameSize
     frame.setUint32(3, j - 8)
     return this.sendRpc(frame, j)
@@ -647,31 +836,44 @@ export class AMQPChannel {
    * @param args - optional arguments, e.g. for header exchanges
    * @return fulfilled when confirmed by the server
    */
-  queueBind(queue: string, exchange: string, routingKey: string, args = {}): Promise<void> {
+  queueBind(
+    queue: string,
+    exchange: string,
+    routingKey: string,
+    args = {},
+  ): Promise<void> {
     if (this.closed) return this.rejectClosed()
     const noWait = false
     let j = 0
     const bind = new AMQPView(new ArrayBuffer(4096))
     // type: method
-    bind.setUint8(j, 1); j += 1
+    bind.setUint8(j, 1)
+    j += 1
     // channel: 1
-    bind.setUint16(j, this.id); j += 2
+    bind.setUint16(j, this.id)
+    j += 2
     // frameSize
-    bind.setUint32(j, 0); j += 4
+    bind.setUint32(j, 0)
+    j += 4
     // class: queue
-    bind.setUint16(j, 50); j += 2
+    bind.setUint16(j, 50)
+    j += 2
     // method: bind
-    bind.setUint16(j, 20); j += 2
+    bind.setUint16(j, 20)
+    j += 2
     // reserved1
-    bind.setUint16(j, 0); j += 2
+    bind.setUint16(j, 0)
+    j += 2
     j += bind.setShortString(j, queue)
     j += bind.setShortString(j, exchange)
     j += bind.setShortString(j, routingKey)
     // noWait
-    bind.setUint8(j, noWait ? 1 : 0); j += 1
+    bind.setUint8(j, noWait ? 1 : 0)
+    j += 1
     j += bind.setTable(j, args)
     // frame end byte
-    bind.setUint8(j, 206); j += 1
+    bind.setUint8(j, 206)
+    j += 1
     // update frameSize
     bind.setUint32(3, j - 8)
     return this.sendRpc(bind, j)
@@ -685,28 +887,40 @@ export class AMQPChannel {
    * @param args - arguments, e.g. for header exchanges
    * @return fulfilled when confirmed by the server
    */
-  queueUnbind(queue: string, exchange: string, routingKey: string, args = {}): Promise<void> {
+  queueUnbind(
+    queue: string,
+    exchange: string,
+    routingKey: string,
+    args = {},
+  ): Promise<void> {
     if (this.closed) return this.rejectClosed()
     let j = 0
     const unbind = new AMQPView(new ArrayBuffer(4096))
     // type: method
-    unbind.setUint8(j, 1); j += 1
+    unbind.setUint8(j, 1)
+    j += 1
     // channel: 1
-    unbind.setUint16(j, this.id); j += 2
+    unbind.setUint16(j, this.id)
+    j += 2
     // frameSize
-    unbind.setUint32(j, 0); j += 4
+    unbind.setUint32(j, 0)
+    j += 4
     // class: queue
-    unbind.setUint16(j, 50); j += 2
+    unbind.setUint16(j, 50)
+    j += 2
     // method: unbind
-    unbind.setUint16(j, 50); j += 2
+    unbind.setUint16(j, 50)
+    j += 2
     // reserved1
-    unbind.setUint16(j, 0); j += 2
+    unbind.setUint16(j, 0)
+    j += 2
     j += unbind.setShortString(j, queue)
     j += unbind.setShortString(j, exchange)
     j += unbind.setShortString(j, routingKey)
     j += unbind.setTable(j, args)
     // frame end byte
-    unbind.setUint8(j, 206); j += 1
+    unbind.setUint8(j, 206)
+    j += 1
     // update frameSize
     unbind.setUint32(3, j - 8)
     return this.sendRpc(unbind, j)
@@ -723,22 +937,30 @@ export class AMQPChannel {
     let j = 0
     const purge = new AMQPView(new ArrayBuffer(512))
     // type: method
-    purge.setUint8(j, 1); j += 1
+    purge.setUint8(j, 1)
+    j += 1
     // channel: 1
-    purge.setUint16(j, this.id); j += 2
+    purge.setUint16(j, this.id)
+    j += 2
     // frameSize
-    purge.setUint32(j, 0); j += 4
+    purge.setUint32(j, 0)
+    j += 4
     // class: queue
-    purge.setUint16(j, 50); j += 2
+    purge.setUint16(j, 50)
+    j += 2
     // method: purge
-    purge.setUint16(j, 30); j += 2
+    purge.setUint16(j, 30)
+    j += 2
     // reserved1
-    purge.setUint16(j, 0); j += 2
+    purge.setUint16(j, 0)
+    j += 2
     j += purge.setShortString(j, queue)
     // noWait
-    purge.setUint8(j, noWait ? 1 : 0); j += 1
+    purge.setUint8(j, noWait ? 1 : 0)
+    j += 1
     // frame end byte
-    purge.setUint8(j, 206); j += 1
+    purge.setUint8(j, 206)
+    j += 1
     // update frameSize
     purge.setUint32(3, j - 8)
     return this.sendRpc(purge, j)
@@ -756,34 +978,52 @@ export class AMQPChannel {
    * @param args - optional arguments
    * @return Fulfilled when the exchange is created or if it already exists
    */
-  exchangeDeclare(name: string, type: ExchangeType, { passive = false, durable = true, autoDelete = false, internal = false } = {} as ExchangeParams, args = {}): Promise<void> {
+  exchangeDeclare(
+    name: string,
+    type: ExchangeType,
+    {
+      passive = false,
+      durable = true,
+      autoDelete = false,
+      internal = false,
+    } = {} as ExchangeParams,
+    args = {},
+  ): Promise<void> {
     const noWait = false
     let j = 0
     const frame = new AMQPView(new ArrayBuffer(4096))
     // type: method
-    frame.setUint8(j, 1); j += 1
+    frame.setUint8(j, 1)
+    j += 1
     // channel
-    frame.setUint16(j, this.id); j += 2
+    frame.setUint16(j, this.id)
+    j += 2
     // frame size
-    frame.setUint32(j, 0); j += 4
+    frame.setUint32(j, 0)
+    j += 4
     // class: exchange
-    frame.setUint16(j, 40); j += 2
+    frame.setUint16(j, 40)
+    j += 2
     // method: declare
-    frame.setUint16(j, 10); j += 2
+    frame.setUint16(j, 10)
+    j += 2
     // reserved1
-    frame.setUint16(j, 0); j += 2
+    frame.setUint16(j, 0)
+    j += 2
     j += frame.setShortString(j, name)
     j += frame.setShortString(j, type)
     let bits = 0
-    if (passive)    bits = bits | (1 << 0)
-    if (durable)    bits = bits | (1 << 1)
+    if (passive) bits = bits | (1 << 0)
+    if (durable) bits = bits | (1 << 1)
     if (autoDelete) bits = bits | (1 << 2)
-    if (internal)   bits = bits | (1 << 3)
-    if (noWait)     bits = bits | (1 << 4)
-    frame.setUint8(j, bits); j += 1
+    if (internal) bits = bits | (1 << 3)
+    if (noWait) bits = bits | (1 << 4)
+    frame.setUint8(j, bits)
+    j += 1
     j += frame.setTable(j, args)
     // frame end byte
-    frame.setUint8(j, 206); j += 1
+    frame.setUint8(j, 206)
+    j += 1
     // update frameSize
     frame.setUint32(3, j - 8)
     return this.sendRpc(frame, j)
@@ -801,24 +1041,32 @@ export class AMQPChannel {
     let j = 0
     const frame = new AMQPView(new ArrayBuffer(512))
     // type: method
-    frame.setUint8(j, 1); j += 1
+    frame.setUint8(j, 1)
+    j += 1
     // channel
-    frame.setUint16(j, this.id); j += 2
+    frame.setUint16(j, this.id)
+    j += 2
     // frame size
-    frame.setUint32(j, 0); j += 4
+    frame.setUint32(j, 0)
+    j += 4
     // class: exchange
-    frame.setUint16(j, 40); j += 2
+    frame.setUint16(j, 40)
+    j += 2
     // method: declare
-    frame.setUint16(j, 20); j += 2
+    frame.setUint16(j, 20)
+    j += 2
     // reserved1
-    frame.setUint16(j, 0); j += 2
+    frame.setUint16(j, 0)
+    j += 2
     j += frame.setShortString(j, name)
     let bits = 0
     if (ifUnused) bits = bits | (1 << 0)
-    if (noWait)   bits = bits | (1 << 1)
-    frame.setUint8(j, bits); j += 1
+    if (noWait) bits = bits | (1 << 1)
+    frame.setUint8(j, bits)
+    j += 1
     // frame end byte
-    frame.setUint8(j, 206); j += 1
+    frame.setUint8(j, 206)
+    j += 1
     // update frameSize
     frame.setUint32(3, j - 8)
     return this.sendRpc(frame, j)
@@ -832,30 +1080,43 @@ export class AMQPChannel {
    * @param args - optional arguments, e.g. for header exchanges
    * @return fulfilled when confirmed by the server
    */
-  exchangeBind(destination: string, source: string, routingKey = "", args = {}): Promise<void> {
+  exchangeBind(
+    destination: string,
+    source: string,
+    routingKey = "",
+    args = {},
+  ): Promise<void> {
     if (this.closed) return this.rejectClosed()
     let j = 0
     const bind = new AMQPView(new ArrayBuffer(4096))
     // type: method
-    bind.setUint8(j, 1); j += 1
+    bind.setUint8(j, 1)
+    j += 1
     // channel: 1
-    bind.setUint16(j, this.id); j += 2
+    bind.setUint16(j, this.id)
+    j += 2
     // frameSize
-    bind.setUint32(j, 0); j += 4
+    bind.setUint32(j, 0)
+    j += 4
     // class: exchange
-    bind.setUint16(j, 40); j += 2
+    bind.setUint16(j, 40)
+    j += 2
     // method: bind
-    bind.setUint16(j, 30); j += 2
+    bind.setUint16(j, 30)
+    j += 2
     // reserved1
-    bind.setUint16(j, 0); j += 2
+    bind.setUint16(j, 0)
+    j += 2
     j += bind.setShortString(j, destination)
     j += bind.setShortString(j, source)
     j += bind.setShortString(j, routingKey)
     // noWait
-    bind.setUint8(j, 0); j += 1
+    bind.setUint8(j, 0)
+    j += 1
     j += bind.setTable(j, args)
     // frame end byte
-    bind.setUint8(j, 206); j += 1
+    bind.setUint8(j, 206)
+    j += 1
     // update frameSize
     bind.setUint32(3, j - 8)
     return this.sendRpc(bind, j)
@@ -869,30 +1130,43 @@ export class AMQPChannel {
    * @param args - arguments, e.g. for header exchanges
    * @return fulfilled when confirmed by the server
    */
-  exchangeUnbind(destination: string, source: string, routingKey = "", args = {}): Promise<void> {
+  exchangeUnbind(
+    destination: string,
+    source: string,
+    routingKey = "",
+    args = {},
+  ): Promise<void> {
     if (this.closed) return this.rejectClosed()
     let j = 0
     const unbind = new AMQPView(new ArrayBuffer(4096))
     // type: method
-    unbind.setUint8(j, 1); j += 1
+    unbind.setUint8(j, 1)
+    j += 1
     // channel: 1
-    unbind.setUint16(j, this.id); j += 2
+    unbind.setUint16(j, this.id)
+    j += 2
     // frameSize
-    unbind.setUint32(j, 0); j += 4
+    unbind.setUint32(j, 0)
+    j += 4
     // class: exchange
-    unbind.setUint16(j, 40); j += 2
+    unbind.setUint16(j, 40)
+    j += 2
     // method: unbind
-    unbind.setUint16(j, 40); j += 2
+    unbind.setUint16(j, 40)
+    j += 2
     // reserved1
-    unbind.setUint16(j, 0); j += 2
+    unbind.setUint16(j, 0)
+    j += 2
     j += unbind.setShortString(j, destination)
     j += unbind.setShortString(j, source)
     j += unbind.setShortString(j, routingKey)
     // noWait
-    unbind.setUint8(j, 0); j += 1
+    unbind.setUint8(j, 0)
+    j += 1
     j += unbind.setTable(j, args)
     // frame end byte
-    unbind.setUint8(j, 206); j += 1
+    unbind.setUint8(j, 206)
+    j += 1
     // update frameSize
     unbind.setUint32(3, j - 8)
     return this.sendRpc(unbind, j)
@@ -925,16 +1199,22 @@ export class AMQPChannel {
     let j = 0
     const frame = new AMQPView(new ArrayBuffer(12))
     // type: method
-    frame.setUint8(j, 1); j += 1
+    frame.setUint8(j, 1)
+    j += 1
     // channel: 1
-    frame.setUint16(j, this.id); j += 2
+    frame.setUint16(j, this.id)
+    j += 2
     // frameSize
-    frame.setUint32(j, 4); j += 4
+    frame.setUint32(j, 4)
+    j += 4
     // class: Tx
-    frame.setUint16(j, 90); j += 2
-    frame.setUint16(j, methodId); j += 2
+    frame.setUint16(j, 90)
+    j += 2
+    frame.setUint16(j, methodId)
+    j += 2
     // frame end byte
-    frame.setUint8(j, 206); j += 1
+    frame.setUint8(j, 206)
+    j += 1
     return this.sendRpc(frame, j)
   }
 
@@ -947,7 +1227,8 @@ export class AMQPChannel {
   private sendRpc(frame: AMQPView, frameSize: number): Promise<any> {
     return new Promise((resolve, reject) => {
       this.rpcQueue = this.rpcQueue.then(() => {
-        this.connection.send(new Uint8Array(frame.buffer, 0, frameSize))
+        this.connection
+          .send(new Uint8Array(frame.buffer, 0, frameSize))
           .then(() => {
             this.resolveRPC = resolve
             this.rejectRPC = reject
@@ -995,21 +1276,32 @@ export class AMQPChannel {
    * @param multiple - true if all unconfirmed publishes up to this deliveryTag should be resolved or just this one
    * @param nack - true if negative confirm, hence reject the unconfirmed publish(es)
    */
-  publishConfirmed(deliveryTag: number, multiple: boolean, nack: boolean): void {
+  publishConfirmed(
+    deliveryTag: number,
+    multiple: boolean,
+    nack: boolean,
+  ): void {
     // is queueMicrotask() needed here?
-    const idx = this.unconfirmedPublishes.findIndex(([tag,]) => tag === deliveryTag)
+    const idx = this.unconfirmedPublishes.findIndex(
+      ([tag]) => tag === deliveryTag,
+    )
     if (idx !== -1) {
-      const confirmed = multiple ?
-        this.unconfirmedPublishes.splice(0, idx + 1) :
-        this.unconfirmedPublishes.splice(idx, 1)
+      const confirmed = multiple
+        ? this.unconfirmedPublishes.splice(0, idx + 1)
+        : this.unconfirmedPublishes.splice(idx, 1)
       confirmed.forEach(([tag, resolve, reject]) => {
-        if (nack)
-          reject(new Error("Message rejected"))
-        else
-          resolve(tag)
+        if (nack) reject(new Error("Message rejected"))
+        else resolve(tag)
       })
     } else {
-      this.logger?.warn("Cant find unconfirmed deliveryTag", deliveryTag, "multiple:", multiple, "nack:", nack)
+      this.logger?.warn(
+        "Cant find unconfirmed deliveryTag",
+        deliveryTag,
+        "multiple:",
+        multiple,
+        "nack:",
+        nack,
+      )
     }
   }
 
@@ -1035,13 +1327,17 @@ export class AMQPChannel {
    * Resolvs next RPC command
    * @ignore
    */
-  resolveRPC(value?: unknown) : void { value }
+  resolveRPC(value?: unknown): void {
+    value
+  }
 
   /**
    * Reject next RPC command
    * @ignore
    */
-  rejectRPC(err?: Error) : void { err }
+  rejectRPC(err?: Error): void {
+    err
+  }
 
   /**
    * Deliver a message to a consumer
@@ -1053,15 +1349,20 @@ export class AMQPChannel {
       if (consumer) {
         consumer.onMessage(message)
       } else {
-        this.logger?.warn("Consumer", message.consumerTag, "not available on channel", this.id)
+        this.logger?.warn(
+          "Consumer",
+          message.consumerTag,
+          "not available on channel",
+          this.id,
+        )
       }
     })
   }
 }
 
 export type QueueOk = {
-  name: string,
-  messageCount: number,
+  name: string
+  messageCount: number
   consumerCount: number
 }
 
@@ -1069,21 +1370,21 @@ export type MessageCount = {
   messageCount: number
 }
 
-export type ExchangeType = 'direct' | 'fanout' | 'topic' | 'headers' | string;
+export type ExchangeType = "direct" | "fanout" | "topic" | "headers" | string
 
 export type ExchangeParams = {
   /**
    * if the exchange name doesn't exist the channel will be closed with an error, fulfilled if the exchange name does exists
    */
-  passive?: boolean,
+  passive?: boolean
   /**
    * if the exchange should survive server restarts
    */
-  durable?: boolean,
+  durable?: boolean
   /**
    * if the exchange should be deleted when the last binding from it is deleted
    */
-  autoDelete?: boolean,
+  autoDelete?: boolean
   /**
    * if exchange is internal to the server. Client's can't publish to internal exchanges.
    */
@@ -1094,15 +1395,15 @@ export type QueueParams = {
   /**
    * if the queue name doesn't exist the channel will be closed with an error, fulfilled if the queue name does exists
    */
-  passive?: boolean,
+  passive?: boolean
   /**
    * if the queue should survive server restarts
    */
-  durable?: boolean,
+  durable?: boolean
   /**
    * if the queue should be deleted when the last consumer of the queue disconnects
    */
-  autoDelete?: boolean,
+  autoDelete?: boolean
   /**
    * if the queue should be deleted when the channel is closed
    */
@@ -1110,25 +1411,25 @@ export type QueueParams = {
 }
 
 /* * @param [param.tag=""] - tag of the consumer, will be server generated if left empty
-   * @param [param.noAck=true] - if messages are removed from the server upon delivery, or have to be acknowledged
-   * @param [param.exclusive=false] - if this can be the only consumer of the queue, will return an Error if there are other consumers to the queue already
-   * @param [param.args={}] - custom arguments */
+ * @param [param.noAck=true] - if messages are removed from the server upon delivery, or have to be acknowledged
+ * @param [param.exclusive=false] - if this can be the only consumer of the queue, will return an Error if there are other consumers to the queue already
+ * @param [param.args={}] - custom arguments */
 
 export type ConsumeParams = {
   /**
    * tag of the consumer, will be server generated if left empty
    */
-  tag?: string,
+  tag?: string
   /**
    * if messages are removed from the server upon delivery, or have to be acknowledged
    */
-  noAck?: boolean,
+  noAck?: boolean
   /**
    * if this can be the only consumer of the queue, will return an Error if there are other consumers to the queue already
    */
-  exclusive?: boolean,
+  exclusive?: boolean
   /**
    * custom arguments
    */
   args?: Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any
-};
+}
