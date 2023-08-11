@@ -1,10 +1,10 @@
-import { AMQPError } from './amqp-error.js'
-import { AMQPView } from './amqp-view.js'
-import { AMQPQueue } from './amqp-queue.js'
-import { AMQPConsumer } from './amqp-consumer.js'
-import type { AMQPMessage } from './amqp-message.js'
-import type { AMQPBaseClient } from './amqp-base-client.js'
-import type { AMQPProperties } from './amqp-properties.js'
+import { AMQPError } from "./amqp-error.js"
+import { AMQPView } from "./amqp-view.js"
+import { AMQPQueue } from "./amqp-queue.js"
+import { AMQPConsumer } from "./amqp-consumer.js"
+import type { AMQPMessage } from "./amqp-message.js"
+import type { AMQPBaseClient } from "./amqp-base-client.js"
+import type { AMQPProperties } from "./amqp-properties.js"
 
 /**
  * Represents an AMQP Channel. Almost all actions in AMQP are performed on a Channel.
@@ -32,7 +32,7 @@ export class AMQPChannel {
   }
 
   private get logger() {
-    return this.connection.logger;
+    return this.connection.logger
   }
 
   open(): Promise<AMQPChannel> {
@@ -51,10 +51,10 @@ export class AMQPChannel {
   /**
    * Declare a queue and return an AMQPQueue instance.
    */
-  queue(name = "", {passive = false, durable = name !== "", autoDelete = name === "", exclusive = name === ""} = {} as QueueParams, args = {}): Promise<AMQPQueue> {
+  queue(name = "", { passive = false, durable = name !== "", autoDelete = name === "", exclusive = name === "" } = {} as QueueParams, args = {}): Promise<AMQPQueue> {
     return new Promise((resolve, reject) => {
-      this.queueDeclare(name, {passive, durable, autoDelete, exclusive}, args)
-        .then(({name}) => resolve(new AMQPQueue(this, name)))
+      this.queueDeclare(name, { passive, durable, autoDelete, exclusive }, args)
+        .then(({ name }) => resolve(new AMQPQueue(this, name)))
         .catch(reject)
     })
   }
@@ -105,7 +105,7 @@ export class AMQPChannel {
    * @param [param.noAck=true] - if message is removed from the server upon delivery, or have to be acknowledged
    * @return - returns null if the queue is empty otherwise a single message
    */
-  basicGet(queue: string, { noAck = true } = {}): Promise<AMQPMessage|null> {
+  basicGet(queue: string, { noAck = true } = {}): Promise<AMQPMessage | null> {
     if (this.closed) return this.rejectClosed()
     let j = 0
     const frame = new AMQPView(new ArrayBuffer(512))
@@ -132,7 +132,7 @@ export class AMQPChannel {
    * @param [param.args={}] - custom arguments
    * @param {function(AMQPMessage) : void} callback - will be called for each message delivered to this consumer
    */
-  basicConsume(queue: string, {tag = "", noAck = true, exclusive = false, args = {}} = {}, callback: (msg: AMQPMessage) => void): Promise<AMQPConsumer> {
+  basicConsume(queue: string, { tag = "", noAck = true, exclusive = false, args = {} } = {}, callback: (msg: AMQPMessage) => void): Promise<AMQPConsumer> {
     if (this.closed) return this.rejectClosed()
     let j = 0
     const noWait = false
@@ -157,11 +157,13 @@ export class AMQPChannel {
     frame.setUint32(3, j - 8) // update frameSize
 
     return new Promise((resolve, reject) => {
-      this.sendRpc(frame, j).then((consumerTag) =>  {
-        const consumer = new AMQPConsumer(this, consumerTag, callback)
-        this.consumers.set(consumerTag, consumer)
-        resolve(consumer)
-      }).catch(reject)
+      this.sendRpc(frame, j)
+        .then((consumerTag) =>  {
+          const consumer = new AMQPConsumer(this, consumerTag, callback)
+          this.consumers.set(consumerTag, consumer)
+          resolve(consumer)
+        })
+        .catch(reject)
     })
   }
 
@@ -185,14 +187,16 @@ export class AMQPChannel {
     frame.setUint32(3, j - 8) // update frameSize
 
     return new Promise((resolve, reject) => {
-      this.sendRpc(frame, j).then((consumerTag) => {
-        const consumer = this.consumers.get(consumerTag)
-        if (consumer) {
-          consumer.setClosed()
-          this.consumers.delete(consumerTag)
-        }
-        resolve(this)
-      }).catch(reject)
+      this.sendRpc(frame, j)
+        .then((consumerTag) => {
+          const consumer = this.consumers.get(consumerTag)
+          if (consumer) {
+            consumer.setClosed()
+            this.consumers.delete(consumerTag)
+          }
+          resolve(this)
+        })
+        .catch(reject)
     })
   }
 
@@ -288,12 +292,13 @@ export class AMQPChannel {
    * @param [immediate] - if the message should be returned if it can't be delivered to a consumer immediately (not supported in RabbitMQ)
    * @return - fulfilled when the message is enqueue on the socket, or if publish confirm is enabled when the message is confirmed by the server
    */
-  async basicPublish(exchange: string, routingKey: string, data: string|Uint8Array|ArrayBuffer|Buffer|null, properties: AMQPProperties = {}, mandatory = false, immediate = false): Promise<number> {
+  async basicPublish(exchange: string, routingKey: string, data: string | Uint8Array | ArrayBuffer | Buffer | null, properties: AMQPProperties = {}, mandatory = false, immediate = false): Promise<number> {
     if (this.closed) return this.rejectClosed()
-    if (this.connection.blocked)
+    if (this.connection.blocked) {
       return Promise.reject(new AMQPError(`Connection blocked by server: ${this.connection.blocked}`, this.connection))
+    }
 
-    let body : Uint8Array
+    let body: Uint8Array
     if (typeof Buffer !== "undefined" && data instanceof Buffer) {
       body = data
     } else if (data instanceof Uint8Array) {
@@ -334,7 +339,7 @@ export class AMQPChannel {
     buffer.setUint16(j, 0); j += 2 // weight
     buffer.setUint32(j, 0); j += 4 // bodysize (upper 32 of 64 bits)
     buffer.setUint32(j, body.byteLength); j += 4 // bodysize
-    j += buffer.setProperties(j, properties); // properties
+    j += buffer.setProperties(j, properties) // properties
     buffer.setUint8(j, 206); j += 1 // frame end byte
     buffer.setUint32(headerStart + 3, j - headerStart - 8) // update frameSize
 
@@ -793,14 +798,15 @@ export class AMQPChannel {
     // is queueMicrotask() needed here?
     const idx = this.unconfirmedPublishes.findIndex(([tag,]) => tag === deliveryTag)
     if (idx !== -1) {
-      const confirmed = multiple ?
-        this.unconfirmedPublishes.splice(0, idx + 1) :
-        this.unconfirmedPublishes.splice(idx, 1)
+      const confirmed = multiple
+        ? this.unconfirmedPublishes.splice(0, idx + 1)
+        : this.unconfirmedPublishes.splice(idx, 1)
       confirmed.forEach(([tag, resolve, reject]) => {
-        if (nack)
+        if (nack) {
           reject(new Error("Message rejected"))
-        else
+        } else {
           resolve(tag)
+        }
       })
     } else {
       this.logger?.warn("Cant find unconfirmed deliveryTag", deliveryTag, "multiple:", multiple, "nack:", nack)
@@ -829,13 +835,13 @@ export class AMQPChannel {
    * Resolvs next RPC command
    * @ignore
    */
-  resolveRPC(value?: unknown) : void { value }
+  resolveRPC(value?: unknown): void { value }
 
   /**
    * Reject next RPC command
    * @ignore
    */
-  rejectRPC(err?: Error) : void { err }
+  rejectRPC(err?: Error): void { err }
 
   /**
    * Deliver a message to a consumer
@@ -854,8 +860,8 @@ export class AMQPChannel {
 }
 
 export type QueueOk = {
-  name: string,
-  messageCount: number,
+  name: string
+  messageCount: number
   consumerCount: number
 }
 
@@ -863,21 +869,21 @@ export type MessageCount = {
   messageCount: number
 }
 
-export type ExchangeType = 'direct' | 'fanout' | 'topic' | 'headers' | string;
+export type ExchangeType = "direct" | "fanout" | "topic" | "headers" | string
 
 export type ExchangeParams = {
   /**
    * if the exchange name doesn't exist the channel will be closed with an error, fulfilled if the exchange name does exists
    */
-  passive?: boolean,
+  passive?: boolean
   /**
    * if the exchange should survive server restarts
    */
-  durable?: boolean,
+  durable?: boolean
   /**
    * if the exchange should be deleted when the last binding from it is deleted
    */
-  autoDelete?: boolean,
+  autoDelete?: boolean
   /**
    * if exchange is internal to the server. Client's can't publish to internal exchanges.
    */
@@ -888,15 +894,15 @@ export type QueueParams = {
   /**
    * if the queue name doesn't exist the channel will be closed with an error, fulfilled if the queue name does exists
    */
-  passive?: boolean,
+  passive?: boolean
   /**
    * if the queue should survive server restarts
    */
-  durable?: boolean,
+  durable?: boolean
   /**
    * if the queue should be deleted when the last consumer of the queue disconnects
    */
-  autoDelete?: boolean,
+  autoDelete?: boolean
   /**
    * if the queue should be deleted when the channel is closed
    */
@@ -912,17 +918,17 @@ export type ConsumeParams = {
   /**
    * tag of the consumer, will be server generated if left empty
    */
-  tag?: string,
+  tag?: string
   /**
    * if messages are removed from the server upon delivery, or have to be acknowledged
    */
-  noAck?: boolean,
+  noAck?: boolean
   /**
    * if this can be the only consumer of the queue, will return an Error if there are other consumers to the queue already
    */
-  exclusive?: boolean,
+  exclusive?: boolean
   /**
    * custom arguments
    */
   args?: Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any
-};
+}

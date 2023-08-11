@@ -1,10 +1,10 @@
-import { AMQPChannel } from './amqp-channel.js'
-import { AMQPError } from './amqp-error.js'
-import { AMQPMessage } from './amqp-message.js'
-import { AMQPView } from './amqp-view.js'
-import type { Logger } from './types.js'
+import { AMQPChannel } from "./amqp-channel.js"
+import { AMQPError } from "./amqp-error.js"
+import { AMQPMessage } from "./amqp-message.js"
+import { AMQPView } from "./amqp-view.js"
+import type { Logger } from "./types.js"
 
-const VERSION = '3.0.0'
+const VERSION = "3.0.0"
 
 /**
  * Base class for AMQPClients.
@@ -40,9 +40,9 @@ export abstract class AMQPBaseClient {
     this.vhost = vhost
     this.username = username
     this.password = ""
-    Object.defineProperty(this, 'password', {
+    Object.defineProperty(this, "password", {
       value: password,
-      enumerable: false // hide it from console.log etc.
+      enumerable: false, // hide it from console.log etc.
     })
     if (name) this.name = name // connection name
     if (platform) this.platform = platform
@@ -66,8 +66,9 @@ export abstract class AMQPBaseClient {
     }
     // Store channels in an array, set position to null when channel is closed
     // Look for first null value or add one the end
-    if (!id)
+    if (!id) {
       id = this.channels.findIndex((ch) => ch === undefined)
+    }
     if (id === -1) id = this.channels.length
     if (id > this.channelMax) return Promise.reject(new AMQPError("Max number of channels reached", this))
 
@@ -103,7 +104,7 @@ export abstract class AMQPBaseClient {
     })
   }
 
-  updateSecret(newSecret : string, reason : string) {
+  updateSecret(newSecret: string, reason: string) {
     let j = 0
     const frame = new AMQPView(new ArrayBuffer(4096))
     frame.setUint8(j, 1); j += 1 // type: method
@@ -163,10 +164,11 @@ export abstract class AMQPBaseClient {
       const frameSize = view.getUint32(i); i += 4
       try {
         const frameEnd = view.getUint8(i + frameSize)
-        if (frameEnd !== 206)
-          throw(new AMQPError(`Invalid frame end ${frameEnd}, expected 206`, this))
+        if (frameEnd !== 206) {
+          throw new AMQPError(`Invalid frame end ${frameEnd}, expected 206`, this)
+        }
       } catch (e) {
-        throw(new AMQPError(`Frame end out of range, frameSize=${frameSize}, pos=${i}, byteLength=${view.byteLength}`, this))
+        throw new AMQPError(`Frame end out of range, frameSize=${frameSize}, pos=${i}, byteLength=${view.byteLength}`, this)
       }
 
       const channel = this.channels[channelId]
@@ -206,7 +208,7 @@ export abstract class AMQPBaseClient {
                       "exchange_exchange_bindings": true,
                       "per_consumer_qos": true,
                       "publisher_confirms": true,
-                    }
+                    },
                   }
                   j += startOk.setTable(j, clientProps) // client properties
                   j += startOk.setShortString(j, "PLAIN") // mechanism
@@ -259,7 +261,7 @@ export abstract class AMQPBaseClient {
                   this.closed = false
                   const promise  = this.connectPromise
                   if (promise) {
-                    const [resolve, ] = promise
+                    const [resolve,] = promise
                     delete this.connectPromise
                     resolve(this)
                   }
@@ -285,7 +287,7 @@ export abstract class AMQPBaseClient {
                   closeOk.setUint16(j, 51); j += 2 // method: closeok
                   closeOk.setUint8(j, 206); j += 1 // frame end byte
                   this.send(new Uint8Array(closeOk.buffer, 0, j))
-                    .catch(err => this.logger?.warn("Error while sending Connection#CloseOk", err))
+                    .catch((err) => this.logger?.warn("Error while sending Connection#CloseOk", err))
                   this.onerror(err)
                   this.rejectConnect(err)
                   this.onUpdateSecretOk?.()
@@ -296,7 +298,7 @@ export abstract class AMQPBaseClient {
                   this.channels = [new AMQPChannel(this, 0)]
                   const promise = this.closePromise
                   if (promise) {
-                    const [resolve, ] = promise
+                    const [resolve,] = promise
                     delete this.closePromise
                     resolve()
                     this.closeSocket()
@@ -358,7 +360,7 @@ export abstract class AMQPBaseClient {
                   closeOk.setUint16(j, 41); j += 2 // method: closeok
                   closeOk.setUint8(j, 206); j += 1 // frame end byte
                   this.send(new Uint8Array(closeOk.buffer, 0, j))
-                    .catch(err => this.logger?.error("Error while sending Channel#closeOk", err))
+                    .catch((err) => this.logger?.error("Error while sending Channel#closeOk", err))
                   break
                 }
                 case 41: { // closeOk
@@ -491,8 +493,8 @@ export abstract class AMQPBaseClient {
                 case 71: { // getOk
                   const deliveryTag = view.getUint64(i); i += 8
                   const redelivered = view.getUint8(i) === 1; i += 1
-                  const [exchange, exchangeLen]= view.getShortString(i); i += exchangeLen
-                  const [routingKey, routingKeyLen]= view.getShortString(i); i += routingKeyLen
+                  const [exchange, exchangeLen] = view.getShortString(i); i += exchangeLen
+                  const [routingKey, routingKeyLen] = view.getShortString(i); i += routingKeyLen
                   const messageCount = view.getUint32(i); i += 4
                   const message = new AMQPMessage(channel)
                   message.deliveryTag = deliveryTag
@@ -504,7 +506,7 @@ export abstract class AMQPBaseClient {
                   break
                 }
                 case 72: { // getEmpty
-                  const [ , len]= view.getShortString(i); i += len // reserved1
+                  const [, len] = view.getShortString(i); i += len // reserved1
                   channel.resolveRPC(null)
                   break
                 }
@@ -572,8 +574,9 @@ export abstract class AMQPBaseClient {
             message.bodySize = bodySize
             message.properties = properties
             message.body = new Uint8Array(bodySize)
-            if (bodySize === 0)
+            if (bodySize === 0) {
               channel.onMessageReady(message)
+            }
           } else {
             this.logger?.warn("Header frame but no message")
           }
@@ -586,8 +589,9 @@ export abstract class AMQPBaseClient {
             message.body.set(bodyPart, message.bodyPos)
             message.bodyPos += frameSize
             i += frameSize
-            if (message.bodyPos === message.bodySize)
+            if (message.bodyPos === message.bodySize) {
               channel.onMessageReady(message)
+            }
           } else {
             this.logger?.warn("Body frame but no message")
           }
@@ -595,7 +599,7 @@ export abstract class AMQPBaseClient {
         }
         case 8: { // heartbeat
           const heartbeat = new Uint8Array([8, 0, 0, 0, 0, 0, 0, 206])
-          this.send(heartbeat).catch(err => this.logger?.warn("Error while sending heartbeat", err))
+          this.send(heartbeat).catch((err) => this.logger?.warn("Error while sending heartbeat", err))
           break
         }
         default:

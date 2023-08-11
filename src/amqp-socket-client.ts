@@ -1,21 +1,21 @@
-import { AMQPBaseClient } from './amqp-base-client.js'
-import { AMQPError } from './amqp-error.js'
-import type { AMQPTlsOptions } from './amqp-tls-options.js'
-import { AMQPView } from './amqp-view.js'
-import { Buffer } from 'buffer'
-import * as net from 'net'
-import * as tls from 'tls'
+import { AMQPBaseClient } from "./amqp-base-client.js"
+import { AMQPError } from "./amqp-error.js"
+import type { AMQPTlsOptions } from "./amqp-tls-options.js"
+import { AMQPView } from "./amqp-view.js"
+import { Buffer } from "buffer"
+import * as net from "net"
+import * as tls from "tls"
 
 /**
  * AMQP 0-9-1 client over TCP socket.
  */
 export class AMQPClient extends AMQPBaseClient {
   socket?: net.Socket | undefined
-  readonly tls : boolean
-  readonly host : string
-  readonly port : number
-  readonly tlsOptions : AMQPTlsOptions | undefined
-  private readonly insecure : boolean
+  readonly tls: boolean
+  readonly host: string
+  readonly port: number
+  readonly tlsOptions: AMQPTlsOptions | undefined
+  private readonly insecure: boolean
   private framePos: number
   private frameSize: number
   private readonly frameBuffer: Buffer
@@ -41,26 +41,26 @@ export class AMQPClient extends AMQPBaseClient {
     this.framePos = 0
     this.frameSize = 0
     this.frameBuffer = Buffer.allocUnsafe(frameMax)
-    Object.defineProperty(this, 'frameBuffer', {
-      enumerable: false // hide it from console.log etc.
+    Object.defineProperty(this, "frameBuffer", {
+      enumerable: false, // hide it from console.log etc.
     })
   }
 
   override connect(): Promise<AMQPBaseClient> {
     const socket = this.connectSocket()
-    Object.defineProperty(this, 'socket', {
+    Object.defineProperty(this, "socket", {
       value: socket,
       writable: true,
-      enumerable: false // hide it from console.log etc.
+      enumerable: false, // hide it from console.log etc.
     })
     // enable socket read timeout during connection establishment
     socket.setTimeout((this.heartbeat || 60) * 1000)
     // enable TCP keepalive if AMQP heartbeats are disabled
     if (this.heartbeat === 0) socket.setKeepAlive(true, 60)
     return new Promise((resolve, reject) => {
-      socket.on('timeout', () => reject(new AMQPError("timeout", this)))
-      socket.on('error', (err) => reject(new AMQPError(err.message, this)))
-      const onConnect = (conn : AMQPBaseClient) => {
+      socket.on("timeout", () => reject(new AMQPError("timeout", this)))
+      socket.on("error", (err) => reject(new AMQPError(err.message, this)))
+      const onConnect = (conn: AMQPBaseClient) => {
         socket.setTimeout(this.heartbeat * 1000) // reset timeout if heartbeats are disabled
         resolve(conn)
       }
@@ -74,14 +74,14 @@ export class AMQPClient extends AMQPBaseClient {
       port: this.port,
       servername: net.isIP(this.host) ? "" : this.host,
       rejectUnauthorized: !this.insecure,
-      ...this.tlsOptions
+      ...this.tlsOptions,
     }
     const sendStart = () => this.send(new Uint8Array([65, 77, 81, 80, 0, 0, 9, 1]))
     const conn = this.tls ? tls.connect(options, sendStart) : net.connect(options, sendStart)
-    conn.on('data', this.onRead.bind(this))
-    conn.on('connect', () => {
-      conn.on('error', (err) => this.onerror(new AMQPError(err.message, this)))
-      conn.on('close', (hadError: boolean) => {
+    conn.on("data", this.onRead.bind(this))
+    conn.on("connect", () => {
+      conn.on("error", (err) => this.onerror(new AMQPError(err.message, this)))
+      conn.on("close", (hadError: boolean) => {
         if (!hadError && !this.closed) this.onerror(new AMQPError("Socket closed", this))
       })
     })
@@ -146,8 +146,9 @@ export class AMQPClient extends AMQPBaseClient {
    */
   override send(bytes: Uint8Array): Promise<void> {
     return new Promise((resolve, reject) => {
-      if (!this.socket)
+      if (!this.socket) {
         return reject(new AMQPError("Socket not connected", this))
+      }
       try {
         this.socket.write(bytes, undefined, (err) => err ? reject(err) : resolve())
       } catch (err) {
