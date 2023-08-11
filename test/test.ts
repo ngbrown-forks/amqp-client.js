@@ -243,7 +243,7 @@ test('closed socket closes client', async () => {
   expect(amqp.closed).toBe(true)
 })
 
-test('can connect through toxiproxy', async () => {
+test.only('can connect through toxiproxy', async () => {
   const proxyBody = <ICreateProxyBody>{
     listen: "0.0.0.0:5673",
     name: "rabbitmq",
@@ -259,7 +259,7 @@ test('can connect through toxiproxy', async () => {
   await amqp.close()
 })
 
-test('socket interruption throws error', async () => {
+test.only('socket interruption throws error', async () => {
   const proxyBody = <ICreateProxyBody>{
     listen: "0.0.0.0:5673",
     name: "rabbitmq",

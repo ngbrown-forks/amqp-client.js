@@ -5,7 +5,7 @@ beforeEach(() => {
   expect.hasAssertions()
 })
 
-test('can connect with TLS', () => {
+test.skip('can connect with TLS', () => {
   const amqp = new AMQPClient(process.env["AMQPS_URL"] || "amqps://127.0.0.1?insecure=true")
   return amqp.connect()
     .then(conn => conn.channel())

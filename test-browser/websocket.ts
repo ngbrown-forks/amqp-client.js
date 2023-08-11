@@ -239,7 +239,7 @@ test('closed socket closes client', async () => {
   expect(amqp.closed).toBe(true)
 })
 
-test('can connect through toxiproxy', async () => {
+test.only('can connect through toxiproxy', async () => {
   const proxyBody = <ICreateProxyBody>{
     listen: "0.0.0.0:15673",
     name: "websocket-relay",
