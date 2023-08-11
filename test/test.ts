@@ -1,4 +1,6 @@
-import { assert, expect, test, beforeEach, vi } from "vitest";
+import { assert, expect, test, beforeEach, vi, beforeAll, afterEach } from "vitest";
+import type { ICreateProxyBody } from "toxiproxy-node-client";
+import { Toxiproxy } from "toxiproxy-node-client";
 import { AMQPClient } from '../src/amqp-socket-client.js';
 import { AMQPMessage } from '../src/amqp-message.js';
 import type { AMQPError } from "../src/amqp-error.js";
@@ -11,8 +13,21 @@ function getNewClient(init?: {frameMax?: number, heartbeat?: number}): AMQPClien
   return new AMQPClient(url.toString())
 }
 
+let toxiproxy: Toxiproxy;
+
+beforeAll(async () => {
+  toxiproxy = new Toxiproxy("http://localhost:8474")
+})
+
 beforeEach(() => {
   expect.hasAssertions()
+})
+
+afterEach(async () => {
+  const proxies = await toxiproxy.getAll()
+  for (const proxy of Object.entries(proxies)) {
+    await proxy[1].remove()
+  }
 })
 
 test('can parse the url correctly', () => {
@@ -225,6 +240,47 @@ test('closed socket closes client', async () => {
   const closed = new Promise((resolve) => socket.on('close', resolve))
   socket.destroy()
   await closed
+  expect(amqp.closed).toBe(true)
+})
+
+test('can connect through toxiproxy', async () => {
+  const proxyBody = <ICreateProxyBody>{
+    listen: "0.0.0.0:5673",
+    name: "rabbitmq",
+    upstream: "rabbitmq:5672"
+  };
+  const proxy = await toxiproxy.createProxy(proxyBody);
+
+  const url = new URL("amqp://127.0.0.1:5673")
+  const amqp = new AMQPClient(url.toString())
+  const conn = await amqp.connect()
+  const ch = await conn.channel()
+  expect(ch.connection.channels.length).toEqual(2) // 2 because channel 0 is counted
+  await amqp.close()
+})
+
+test('socket interruption throws error', async () => {
+  const proxyBody = <ICreateProxyBody>{
+    listen: "0.0.0.0:5673",
+    name: "rabbitmq",
+    upstream: "rabbitmq:5672"
+  };
+  const proxy = await toxiproxy.createProxy(proxyBody);
+
+  const url = new URL("amqp://127.0.0.1:5673")
+  const amqp = new AMQPClient(url.toString())
+  let err: AMQPError | null = null;
+  amqp.onerror = vi.fn((reason) => err = reason)
+  const conn = await amqp.connect()
+  const ch = await conn.channel()
+  
+  expect.assertions(4)
+  expect(ch.connection.channels.length).toEqual(2) // 2 because channel 0 is counted
+
+  await proxy.remove()
+  
+  expect(amqp.onerror).toBeCalled()
+  expect((err as AMQPError | null)?.message).toBe("Socket closed")
   expect(amqp.closed).toBe(true)
 })
 

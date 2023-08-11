@@ -1,4 +1,6 @@
-import { assert, expect, test, beforeEach, vi } from "vitest";
+import { assert, expect, test, beforeEach, vi, beforeAll, afterEach } from "vitest";
+import type { IProxyBody as ICreateProxyBody } from "./toxiproxy.js";
+import { Toxiproxy } from "./toxiproxy.js";
 import { AMQPWebSocketClient } from '../src/amqp-websocket-client.js';
 import { AMQPMessage } from '../src/amqp-message.js';
 import type { AMQPError } from "../src/amqp-error.js";
@@ -9,8 +11,21 @@ function getNewClient(init?: {frameMax?: number, heartbeat?: number}): AMQPWebSo
     : new AMQPWebSocketClient("ws://127.0.0.1:15670/ws/amqp")
 }
 
+let toxiproxy: Toxiproxy;
+
+beforeAll(async () => {
+  toxiproxy = new Toxiproxy("http://localhost:8474")
+})
+
 beforeEach(() => {
   expect.hasAssertions()
+})
+
+afterEach(async () => {
+  const proxies = await toxiproxy.getAll()
+  for (const proxy of Object.entries(proxies)) {
+    await proxy[1].remove()
+  }
 })
 
 test('can parse the url correctly', () => {
@@ -222,6 +237,21 @@ test('closed socket closes client', async () => {
   socket.close()
   await closed
   expect(amqp.closed).toBe(true)
+})
+
+test('can connect through toxiproxy', async () => {
+  const proxyBody = <ICreateProxyBody>{
+    listen: "0.0.0.0:15673",
+    name: "websocket-relay",
+    upstream: "websocket-relay:15670"
+  };
+  const proxy = await toxiproxy.createProxy(proxyBody);
+
+  const amqp = new AMQPWebSocketClient("ws://127.0.0.1:15673/ws/amqp")
+  const conn = await amqp.connect()
+  const ch = await conn.channel()
+  expect(ch.connection.channels.length).toEqual(2) // 2 because channel 0 is counted
+  await amqp.close()
 })
 
 test('wait for publish confirms', async () => {

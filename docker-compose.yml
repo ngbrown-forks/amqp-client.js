@@ -30,6 +30,17 @@ services:
         condition: service_healthy
     command: ["--port", "15670", "--upstream", "tcp://rabbitmq:5672"]
 
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:v2.5-amd64
+    ports:
+      - "8474:8474"
+      - "5673:5673"
+      - "15673:15673"
+    links:
+      - rabbitmq
+      - websocket-relay
+
+
 volumes:
   rabbitmq_data:
   rabbitmq_logs:
