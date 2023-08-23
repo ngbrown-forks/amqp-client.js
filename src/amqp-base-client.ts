@@ -82,6 +82,7 @@ export abstract class AMQPBaseClient {
    * Gracefully close the AMQP connection
    * @param [reason] might be logged by the server
    */
+  // prettier-ignore
   close(reason = "", code = 200): Promise<void> {
     if (this.closed) return this.rejectClosed()
     this.closed = true
@@ -105,6 +106,7 @@ export abstract class AMQPBaseClient {
     })
   }
 
+  // prettier-ignore
   updateSecret(newSecret: string, reason: string) {
     let j = 0
     const frame = new AMQPView(new ArrayBuffer(4096))
@@ -156,6 +158,7 @@ export abstract class AMQPBaseClient {
    * Parse and act on frames in an AMQPView
    * @ignore
    */
+  // prettier-ignore
   protected parseFrames(view: AMQPView): void {
     // Can possibly be multiple AMQP frames in a single WS frame
     for (let i = 0; i < view.byteLength;) {

@@ -99,6 +99,7 @@ export class AMQPView extends DataView {
     }
   }
 
+  // prettier-ignore
   getProperties(byteOffset: number, littleEndian?: boolean): [AMQPProperties, number] {
     let j = byteOffset
     const flags = this.getUint16(j, littleEndian); j += 2
@@ -156,6 +157,7 @@ export class AMQPView extends DataView {
     return [props, len]
   }
 
+  // prettier-ignore
   setProperties(byteOffset: number, properties: AMQPProperties, littleEndian?: boolean): number {
     let j = byteOffset
     let flags = 0
@@ -218,6 +220,7 @@ export class AMQPView extends DataView {
     return len
   }
 
+  // prettier-ignore
   getTable(byteOffset: number, littleEndian?: boolean): [Record<string, Field>, number] {
     const table: Record<string, Field> = {}
     let i = byteOffset
@@ -242,12 +245,14 @@ export class AMQPView extends DataView {
     return i - byteOffset
   }
 
+  // prettier-ignore
   getField(byteOffset: number, littleEndian?: boolean): [Field, number] {
     let i = byteOffset
     const k = this.getUint8(i); i += 1
     const type = String.fromCharCode(k)
     let v
     let len
+    // prettier-ignore
     switch (type) {
       case 't': v = this.getUint8(i) === 1; i += 1; break
       case 'b': v = this.getInt8(i); i += 1; break
@@ -279,6 +284,7 @@ export class AMQPView extends DataView {
 
   setField(byteOffset: number, field: Field, littleEndian?: boolean) : number {
     let i = byteOffset
+    // prettier-ignore
     switch (typeof field) {
       case "string":
         this.setUint8(i, 'S'.charCodeAt(0)); i += 1
@@ -338,6 +344,7 @@ export class AMQPView extends DataView {
     return i - byteOffset
   }
 
+  // prettier-ignore
   getArray(byteOffset: number, littleEndian?: boolean): [Field[], number] {
     const len = this.getUint32(byteOffset, littleEndian); byteOffset += 4
     const endOffset = byteOffset + len
@@ -359,6 +366,7 @@ export class AMQPView extends DataView {
     return byteOffset - start
   }
 
+  // prettier-ignore
   getByteArray(byteOffset: number, littleEndian?: boolean): [Uint8Array, number] {
     const len = this.getUint32(byteOffset, littleEndian); byteOffset += 4
     const v = new Uint8Array(this.buffer, this.byteOffset + byteOffset, len)
@@ -366,7 +374,10 @@ export class AMQPView extends DataView {
   }
 
   setByteArray(byteOffset: number, data: Uint8Array, littleEndian?: boolean) : number {
-    this.setUint32(byteOffset, data.byteLength, littleEndian); byteOffset += 4
+    // prettier-ignore
+    {
+      this.setUint32(byteOffset, data.byteLength, littleEndian); byteOffset += 4
+    }
     const view = new Uint8Array(this.buffer, this.byteOffset + byteOffset, data.byteLength)
     view.set(data)
     return data.byteLength + 4

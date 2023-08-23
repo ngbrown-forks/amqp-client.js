@@ -35,6 +35,7 @@ export class AMQPChannel {
     return this.connection.logger;
   }
 
+  // prettier-ignore
   open(): Promise<AMQPChannel> {
     let j = 0
     const channelOpen = new AMQPView(new ArrayBuffer(13))
@@ -79,6 +80,7 @@ export class AMQPChannel {
    * Close the channel gracefully
    * @param [reason] might be logged by the server
    */
+  // prettier-ignore
   close(reason = "", code = 200): Promise<void> {
     if (this.closed) return this.rejectClosed()
     this.closed = true
@@ -105,6 +107,7 @@ export class AMQPChannel {
    * @param [param.noAck=true] - if message is removed from the server upon delivery, or have to be acknowledged
    * @return - returns null if the queue is empty otherwise a single message
    */
+  // prettier-ignore
   basicGet(queue: string, { noAck = true } = {}): Promise<AMQPMessage|null> {
     if (this.closed) return this.rejectClosed()
     let j = 0
@@ -132,6 +135,7 @@ export class AMQPChannel {
    * @param [param.args={}] - custom arguments
    * @param {function(AMQPMessage) : void} callback - will be called for each message delivered to this consumer
    */
+  // prettier-ignore
   basicConsume(queue: string, {tag = "", noAck = true, exclusive = false, args = {}} = {}, callback: (msg: AMQPMessage) => void): Promise<AMQPConsumer> {
     if (this.closed) return this.rejectClosed()
     let j = 0
@@ -169,6 +173,7 @@ export class AMQPChannel {
    * Cancel/stop a consumer
    * @param tag - consumer tag
    */
+  // prettier-ignore
   basicCancel(tag: string): Promise<AMQPChannel> {
     if (this.closed) return this.rejectClosed()
     const noWait = false
@@ -201,6 +206,7 @@ export class AMQPChannel {
    * @param deliveryTag - tag of the message
    * @param [multiple=false] - batch confirm all messages up to this delivery tag
    */
+  // prettier-ignore
   basicAck(deliveryTag: number, multiple = false): Promise<void> {
     if (this.closed) return this.rejectClosed()
     let j = 0
@@ -222,6 +228,7 @@ export class AMQPChannel {
    * @param [requeue=false] - if the message should be requeued or removed
    * @param [multiple=false] - batch confirm all messages up to this delivery tag
    */
+  // prettier-ignore
   basicNack(deliveryTag: number, requeue = false, multiple = false): Promise<void> {
     if (this.closed) return this.rejectClosed()
     let j = 0
@@ -245,6 +252,7 @@ export class AMQPChannel {
    * @param deliveryTag - tag of the message
    * @param [requeue=false] - if the message should be requeued or removed
    */
+  // prettier-ignore
   basicReject(deliveryTag: number, requeue = false): Promise<void> {
     if (this.closed) return this.rejectClosed()
     let j = 0
@@ -264,6 +272,7 @@ export class AMQPChannel {
    * Tell the server to redeliver all unacknowledged messages again, or reject and requeue them.
    * @param [requeue=false] - if the message should be requeued or redeliviered to this channel
    */
+  // prettier-ignore
   basicRecover(requeue = false): Promise<void> {
     if (this.closed) return this.rejectClosed()
     let j = 0
@@ -288,6 +297,7 @@ export class AMQPChannel {
    * @param [immediate] - if the message should be returned if it can't be delivered to a consumer immediately (not supported in RabbitMQ)
    * @return - fulfilled when the message is enqueue on the socket, or if publish confirm is enabled when the message is confirmed by the server
    */
+  // prettier-ignore
   async basicPublish(exchange: string, routingKey: string, data: string|Uint8Array|ArrayBuffer|Buffer|null, properties: AMQPProperties = {}, mandatory = false, immediate = false): Promise<number> {
     if (this.closed) return this.rejectClosed()
     if (this.connection.blocked)
@@ -381,6 +391,7 @@ export class AMQPChannel {
    * @param prefetchSize - number of bytes to limit to (not supported by RabbitMQ)
    * @param global - if the prefetch is limited to the channel, or if false to each consumer
    */
+  // prettier-ignore
   basicQos(prefetchCount: number, prefetchSize = 0, global = false): Promise<void> {
     if (this.closed) return this.rejectClosed()
     let j = 0
@@ -402,6 +413,7 @@ export class AMQPChannel {
    * Not supported in RabbitMQ
    * @param active - false to stop the flow, true to accept messages
    */
+  // prettier-ignore
   basicFlow(active = true): Promise<boolean> {
     if (this.closed) return this.rejectClosed()
     let j = 0
@@ -419,6 +431,7 @@ export class AMQPChannel {
   /**
    * Enable publish confirm. The server will then confirm each publish with an Ack or Nack when the message is enqueued.
    */
+  // prettier-ignore
   confirmSelect(): Promise<void> {
     if (this.closed) return this.rejectClosed()
     let j = 0
@@ -444,6 +457,7 @@ export class AMQPChannel {
    * @param args - optional custom queue arguments
    * @return fulfilled when confirmed by the server
    */
+  // prettier-ignore
   queueDeclare(name = "", { passive = false, durable = name !== "", autoDelete = name === "", exclusive = name === "" } = {} as QueueParams, args = {}): Promise<QueueOk> {
     if (this.closed) return this.rejectClosed()
     const noWait = false
@@ -476,6 +490,7 @@ export class AMQPChannel {
    * @param [params.ifUnused=false] - only delete if the queue doesn't have any consumers
    * @param [params.ifEmpty=false] - only delete if the queue is empty
    */
+  // prettier-ignore
   queueDelete(name = "", { ifUnused = false, ifEmpty = false } = {}): Promise<MessageCount> {
     if (this.closed) return this.rejectClosed()
     const noWait = false
@@ -506,6 +521,7 @@ export class AMQPChannel {
    * @param args - optional arguments, e.g. for header exchanges
    * @return fulfilled when confirmed by the server
    */
+  // prettier-ignore
   queueBind(queue: string, exchange: string, routingKey: string, args = {}): Promise<void> {
     if (this.closed) return this.rejectClosed()
     const noWait = false
@@ -535,6 +551,7 @@ export class AMQPChannel {
    * @param args - arguments, e.g. for header exchanges
    * @return fulfilled when confirmed by the server
    */
+  // prettier-ignore
   queueUnbind(queue: string, exchange: string, routingKey: string, args = {}): Promise<void> {
     if (this.closed) return this.rejectClosed()
     let j = 0
@@ -559,6 +576,7 @@ export class AMQPChannel {
    * @param queue - name of the queue
    * @return fulfilled when confirmed by the server
    */
+  // prettier-ignore
   queuePurge(queue: string): Promise<MessageCount> {
     if (this.closed) return this.rejectClosed()
     const noWait = false
@@ -589,6 +607,7 @@ export class AMQPChannel {
    * @param args - optional arguments
    * @return Fulfilled when the exchange is created or if it already exists
    */
+  // prettier-ignore
   exchangeDeclare(name: string, type: ExchangeType, { passive = false, durable = true, autoDelete = false, internal = false } = {} as ExchangeParams, args = {}): Promise<void> {
     const noWait = false
     let j = 0
@@ -621,6 +640,7 @@ export class AMQPChannel {
    * @param [param.ifUnused=false] - only delete if the exchange doesn't have any bindings
    * @return Fulfilled when the exchange is deleted or if it's already deleted
    */
+  // prettier-ignore
   exchangeDelete(name: string, { ifUnused = false } = {}): Promise<void> {
     const noWait = false
     let j = 0
@@ -649,6 +669,7 @@ export class AMQPChannel {
    * @param args - optional arguments, e.g. for header exchanges
    * @return fulfilled when confirmed by the server
    */
+  // prettier-ignore
   exchangeBind(destination: string, source: string, routingKey = "", args = {}): Promise<void> {
     if (this.closed) return this.rejectClosed()
     let j = 0
@@ -677,6 +698,7 @@ export class AMQPChannel {
    * @param args - arguments, e.g. for header exchanges
    * @return fulfilled when confirmed by the server
    */
+  // prettier-ignore
   exchangeUnbind(destination: string, source: string, routingKey = "", args = {}): Promise<void> {
     if (this.closed) return this.rejectClosed()
     let j = 0
@@ -719,6 +741,7 @@ export class AMQPChannel {
     return this.txMethod(30)
   }
 
+  // prettier-ignore
   private txMethod(methodId: number): Promise<void> {
     if (this.closed) return this.rejectClosed()
     let j = 0
