@@ -1,10 +1,10 @@
-import { AMQPError } from './amqp-error.js'
-import { AMQPView } from './amqp-view.js'
-import { AMQPQueue } from './amqp-queue.js'
-import { AMQPConsumer } from './amqp-consumer.js'
-import type { AMQPMessage } from './amqp-message.js'
-import type { AMQPBaseClient } from './amqp-base-client.js'
-import type { AMQPProperties } from './amqp-properties.js'
+import { AMQPError } from "./amqp-error.js"
+import { AMQPView } from "./amqp-view.js"
+import { AMQPQueue } from "./amqp-queue.js"
+import { AMQPConsumer } from "./amqp-consumer.js"
+import type { AMQPMessage } from "./amqp-message.js"
+import type { AMQPBaseClient } from "./amqp-base-client.js"
+import type { AMQPProperties } from "./amqp-properties.js"
 
 /**
  * Represents an AMQP Channel. Almost all actions in AMQP are performed on a Channel.
@@ -14,7 +14,11 @@ export class AMQPChannel {
   readonly id: number
   readonly consumers = new Map<string, AMQPConsumer>()
   private rpcQueue: Promise<unknown> = Promise.resolve(true)
-  private readonly unconfirmedPublishes: [number, (confirmId: number) => void, (err?: Error) => void][] = []
+  private readonly unconfirmedPublishes: [
+    number,
+    (confirmId: number) => void,
+    (err?: Error) => void,
+  ][] = []
   closed = false
   confirmId = 0
   delivery?: AMQPMessage
@@ -28,11 +32,12 @@ export class AMQPChannel {
   constructor(connection: AMQPBaseClient, id: number) {
     this.connection = connection
     this.id = id
-    this.onerror = (reason: string) => this.logger?.error(`channel ${this.id} closed: ${reason}`)
+    this.onerror = (reason: string) =>
+      this.logger?.error(`channel ${this.id} closed: ${reason}`)
   }
 
   private get logger() {
-    return this.connection.logger;
+    return this.connection.logger
   }
 
   // prettier-ignore
@@ -52,10 +57,19 @@ export class AMQPChannel {
   /**
    * Declare a queue and return an AMQPQueue instance.
    */
-  queue(name = "", {passive = false, durable = name !== "", autoDelete = name === "", exclusive = name === ""} = {} as QueueParams, args = {}): Promise<AMQPQueue> {
+  queue(
+    name = "",
+    {
+      passive = false,
+      durable = name !== "",
+      autoDelete = name === "",
+      exclusive = name === "",
+    } = {} as QueueParams,
+    args = {},
+  ): Promise<AMQPQueue> {
     return new Promise((resolve, reject) => {
-      this.queueDeclare(name, {passive, durable, autoDelete, exclusive}, args)
-        .then(({name}) => resolve(new AMQPQueue(this, name)))
+      this.queueDeclare(name, { passive, durable, autoDelete, exclusive }, args)
+        .then(({ name }) => resolve(new AMQPQueue(this, name)))
         .catch(reject)
     })
   }
@@ -764,7 +778,8 @@ export class AMQPChannel {
   private sendRpc(frame: AMQPView, frameSize: number): Promise<any> {
     return new Promise((resolve, reject) => {
       this.rpcQueue = this.rpcQueue.then(() => {
-        this.connection.send(new Uint8Array(frame.buffer, 0, frameSize))
+        this.connection
+          .send(new Uint8Array(frame.buffer, 0, frameSize))
           .then(() => {
             this.resolveRPC = resolve
             this.rejectRPC = reject
@@ -812,21 +827,32 @@ export class AMQPChannel {
    * @param multiple - true if all unconfirmed publishes up to this deliveryTag should be resolved or just this one
    * @param nack - true if negative confirm, hence reject the unconfirmed publish(es)
    */
-  publishConfirmed(deliveryTag: number, multiple: boolean, nack: boolean): void {
+  publishConfirmed(
+    deliveryTag: number,
+    multiple: boolean,
+    nack: boolean,
+  ): void {
     // is queueMicrotask() needed here?
-    const idx = this.unconfirmedPublishes.findIndex(([tag,]) => tag === deliveryTag)
+    const idx = this.unconfirmedPublishes.findIndex(
+      ([tag]) => tag === deliveryTag,
+    )
     if (idx !== -1) {
-      const confirmed = multiple ?
-        this.unconfirmedPublishes.splice(0, idx + 1) :
-        this.unconfirmedPublishes.splice(idx, 1)
+      const confirmed = multiple
+        ? this.unconfirmedPublishes.splice(0, idx + 1)
+        : this.unconfirmedPublishes.splice(idx, 1)
       confirmed.forEach(([tag, resolve, reject]) => {
-        if (nack)
-          reject(new Error("Message rejected"))
-        else
-          resolve(tag)
+        if (nack) reject(new Error("Message rejected"))
+        else resolve(tag)
       })
     } else {
-      this.logger?.warn("Cant find unconfirmed deliveryTag", deliveryTag, "multiple:", multiple, "nack:", nack)
+      this.logger?.warn(
+        "Cant find unconfirmed deliveryTag",
+        deliveryTag,
+        "multiple:",
+        multiple,
+        "nack:",
+        nack,
+      )
     }
   }
 
@@ -852,13 +878,17 @@ export class AMQPChannel {
    * Resolvs next RPC command
    * @ignore
    */
-  resolveRPC(value?: unknown) : void { value }
+  resolveRPC(value?: unknown): void {
+    value
+  }
 
   /**
    * Reject next RPC command
    * @ignore
    */
-  rejectRPC(err?: Error) : void { err }
+  rejectRPC(err?: Error): void {
+    err
+  }
 
   /**
    * Deliver a message to a consumer
@@ -870,15 +900,20 @@ export class AMQPChannel {
       if (consumer) {
         consumer.onMessage(message)
       } else {
-        this.logger?.warn("Consumer", message.consumerTag, "not available on channel", this.id)
+        this.logger?.warn(
+          "Consumer",
+          message.consumerTag,
+          "not available on channel",
+          this.id,
+        )
       }
     })
   }
 }
 
 export type QueueOk = {
-  name: string,
-  messageCount: number,
+  name: string
+  messageCount: number
   consumerCount: number
 }
 
@@ -886,21 +921,21 @@ export type MessageCount = {
   messageCount: number
 }
 
-export type ExchangeType = 'direct' | 'fanout' | 'topic' | 'headers' | string;
+export type ExchangeType = "direct" | "fanout" | "topic" | "headers" | string
 
 export type ExchangeParams = {
   /**
    * if the exchange name doesn't exist the channel will be closed with an error, fulfilled if the exchange name does exists
    */
-  passive?: boolean,
+  passive?: boolean
   /**
    * if the exchange should survive server restarts
    */
-  durable?: boolean,
+  durable?: boolean
   /**
    * if the exchange should be deleted when the last binding from it is deleted
    */
-  autoDelete?: boolean,
+  autoDelete?: boolean
   /**
    * if exchange is internal to the server. Client's can't publish to internal exchanges.
    */
@@ -911,41 +946,42 @@ export type QueueParams = {
   /**
    * if the queue name doesn't exist the channel will be closed with an error, fulfilled if the queue name does exists
    */
-  passive?: boolean,
+  passive?: boolean
   /**
    * if the queue should survive server restarts
    */
-  durable?: boolean,
+  durable?: boolean
   /**
    * if the queue should be deleted when the last consumer of the queue disconnects
    */
-  autoDelete?: boolean,
+  autoDelete?: boolean
   /**
    * if the queue should be deleted when the channel is closed
    */
   exclusive?: boolean
 }
 
-/* * @param [param.tag=""] - tag of the consumer, will be server generated if left empty
-   * @param [param.noAck=true] - if messages are removed from the server upon delivery, or have to be acknowledged
-   * @param [param.exclusive=false] - if this can be the only consumer of the queue, will return an Error if there are other consumers to the queue already
-   * @param [param.args={}] - custom arguments */
-
+/* *
+ * @param [param.tag=""] - tag of the consumer, will be server generated if left empty
+ * @param [param.noAck=true] - if messages are removed from the server upon delivery, or have to be acknowledged
+ * @param [param.exclusive=false] - if this can be the only consumer of the queue, will return an Error if there are other consumers to the queue already
+ * @param [param.args={}] - custom arguments
+ */
 export type ConsumeParams = {
   /**
    * tag of the consumer, will be server generated if left empty
    */
-  tag?: string,
+  tag?: string
   /**
    * if messages are removed from the server upon delivery, or have to be acknowledged
    */
-  noAck?: boolean,
+  noAck?: boolean
   /**
    * if this can be the only consumer of the queue, will return an Error if there are other consumers to the queue already
    */
-  exclusive?: boolean,
+  exclusive?: boolean
   /**
    * custom arguments
    */
   args?: Record<string, any> // eslint-disable-line @typescript-eslint/no-explicit-any
-};
+}

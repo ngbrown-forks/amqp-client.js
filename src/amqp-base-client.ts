@@ -1,10 +1,10 @@
-import { AMQPChannel } from './amqp-channel.js'
-import { AMQPError } from './amqp-error.js'
-import { AMQPMessage } from './amqp-message.js'
-import { AMQPView } from './amqp-view.js'
-import type { Logger } from './types.js'
+import { AMQPChannel } from "./amqp-channel.js"
+import { AMQPError } from "./amqp-error.js"
+import { AMQPMessage } from "./amqp-message.js"
+import { AMQPView } from "./amqp-view.js"
+import type { Logger } from "./types.js"
 
-const VERSION = '3.0.0'
+const VERSION = "3.0.0"
 
 /**
  * Base class for AMQPClients.
@@ -17,7 +17,10 @@ export abstract class AMQPBaseClient {
   name?: string
   platform?: string
   channels: AMQPChannel[]
-  protected connectPromise?: [(conn: AMQPBaseClient) => void, (err: Error) => void]
+  protected connectPromise?: [
+    (conn: AMQPBaseClient) => void,
+    (err: Error) => void,
+  ]
   protected closePromise?: [(value?: void) => void, (err: Error) => void]
   protected onUpdateSecretOk?: (value?: void) => void
   closed = true
@@ -36,23 +39,34 @@ export abstract class AMQPBaseClient {
    * @param name - name of the connection, set in client properties
    * @param platform - used in client properties
    */
-  constructor(vhost: string, username: string, password: string, name?: string, platform?: string, frameMax = 4096, heartbeat = 0, channelMax = 0) {
+  constructor(
+    vhost: string,
+    username: string,
+    password: string,
+    name?: string,
+    platform?: string,
+    frameMax = 4096,
+    heartbeat = 0,
+    channelMax = 0,
+  ) {
     this.vhost = vhost
     this.username = username
     this.password = ""
-    Object.defineProperty(this, 'password', {
+    Object.defineProperty(this, "password", {
       value: password,
-      enumerable: false // hide it from console.log etc.
+      enumerable: false, // hide it from console.log etc.
     })
     if (name) this.name = name // connection name
     if (platform) this.platform = platform
     this.channels = [new AMQPChannel(this, 0)]
-    this.onerror = (error: AMQPError) => this.logger?.error("amqp-client connection closed", error.message)
+    this.onerror = (error: AMQPError) =>
+      this.logger?.error("amqp-client connection closed", error.message)
     if (frameMax < 4096) throw new Error("frameMax must be 4096 or larger")
     this.frameMax = frameMax
     if (heartbeat < 0) throw new Error("heartbeat must be positive")
     this.heartbeat = heartbeat
-    if (channelMax && channelMax < 0) throw new Error("channelMax must be positive")
+    if (channelMax && channelMax < 0)
+      throw new Error("channelMax must be positive")
     this.channelMax = channelMax
   }
 
@@ -68,10 +82,12 @@ export abstract class AMQPBaseClient {
     }
     // Store channels in an array, set position to null when channel is closed
     // Look for first null value or add one the end
-    if (!id)
-      id = this.channels.findIndex((ch) => ch === undefined)
+    if (!id) id = this.channels.findIndex((ch) => ch === undefined)
     if (id === -1) id = this.channels.length
-    if (id > this.channelMax && this.channelMax > 0) return Promise.reject(new AMQPError("Max number of channels reached", this))
+    if (id > this.channelMax && this.channelMax > 0)
+      return Promise.reject(
+        new AMQPError("Max number of channels reached", this),
+      )
 
     const channel = new AMQPChannel(this, id)
     this.channels[id] = channel

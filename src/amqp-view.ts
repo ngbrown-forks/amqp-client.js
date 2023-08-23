@@ -1,4 +1,4 @@
-import type { AMQPProperties, Field } from './amqp-properties.js'
+import type { AMQPProperties, Field } from "./amqp-properties.js"
 
 /**
  * An extended DataView, with AMQP protocol specific methods.
@@ -7,31 +7,33 @@ import type { AMQPProperties, Field } from './amqp-properties.js'
  * @ignore
  */
 export class AMQPView extends DataView {
-  getUint64(byteOffset: number, littleEndian?: boolean) : number {
+  getUint64(byteOffset: number, littleEndian?: boolean): number {
     // split 64-bit number into two 32-bit (4-byte) parts
-    const left =  this.getUint32(byteOffset, littleEndian)
+    const left = this.getUint32(byteOffset, littleEndian)
     const right = this.getUint32(byteOffset + 4, littleEndian)
 
     // combine the two 32-bit values
-    const combined = littleEndian ? left + 2**32 * right : 2**32 * left + right
+    const combined = littleEndian
+      ? left + 2 ** 32 * right
+      : 2 ** 32 * left + right
 
     if (!Number.isSafeInteger(combined)) {
       // eslint-disable-next-line no-console
-      console.warn(combined, 'exceeds MAX_SAFE_INTEGER. Precision may be lost')
+      console.warn(combined, "exceeds MAX_SAFE_INTEGER. Precision may be lost")
     }
 
     return combined
   }
 
-  setUint64(byteOffset: number, value: number, littleEndian?: boolean) : void {
+  setUint64(byteOffset: number, value: number, littleEndian?: boolean): void {
     this.setBigUint64(byteOffset, BigInt(value), littleEndian)
   }
 
-  getInt64(byteOffset: number, littleEndian?: boolean) : number {
+  getInt64(byteOffset: number, littleEndian?: boolean): number {
     return Number(this.getBigInt64(byteOffset, littleEndian))
   }
 
-  setInt64(byteOffset: number, value: number, littleEndian?: boolean) : void {
+  setInt64(byteOffset: number, value: number, littleEndian?: boolean): void {
     this.setBigInt64(byteOffset, BigInt(value), littleEndian)
   }
 
@@ -39,19 +41,30 @@ export class AMQPView extends DataView {
     const len = this.getUint8(byteOffset)
     byteOffset += 1
     if (typeof Buffer !== "undefined") {
-      const text = Buffer.from(this.buffer, this.byteOffset + byteOffset, len).toString()
+      const text = Buffer.from(
+        this.buffer,
+        this.byteOffset + byteOffset,
+        len,
+      ).toString()
       return [text, len + 1]
     } else {
-      const view = new Uint8Array(this.buffer, this.byteOffset + byteOffset, len)
+      const view = new Uint8Array(
+        this.buffer,
+        this.byteOffset + byteOffset,
+        len,
+      )
       const text = new TextDecoder().decode(view)
       return [text, len + 1]
     }
   }
 
-  setShortString(byteOffset: number, string: string) : number {
+  setShortString(byteOffset: number, string: string): number {
     if (typeof Buffer !== "undefined") {
       const len = Buffer.byteLength(string)
-      if (len > 255) throw new Error(`Short string too long, ${len} bytes: ${string.substring(0, 255)}...`)
+      if (len > 255)
+        throw new Error(
+          `Short string too long, ${len} bytes: ${string.substring(0, 255)}...`,
+        )
       this.setUint8(byteOffset, len)
       byteOffset += 1
       Buffer.from(this.buffer, this.byteOffset + byteOffset, len).write(string)
@@ -59,7 +72,10 @@ export class AMQPView extends DataView {
     } else {
       const utf8 = new TextEncoder().encode(string)
       const len = utf8.byteLength
-      if (len > 255) throw new Error(`Short string too long, ${len} bytes: ${string.substring(0, 255)}...`)
+      if (len > 255)
+        throw new Error(
+          `Short string too long, ${len} bytes: ${string.substring(0, 255)}...`,
+        )
       this.setUint8(byteOffset, len)
       byteOffset += 1
       const view = new Uint8Array(this.buffer, this.byteOffset + byteOffset)
@@ -72,16 +88,28 @@ export class AMQPView extends DataView {
     const len = this.getUint32(byteOffset, littleEndian)
     byteOffset += 4
     if (typeof Buffer !== "undefined") {
-      const text = Buffer.from(this.buffer, this.byteOffset + byteOffset, len).toString()
+      const text = Buffer.from(
+        this.buffer,
+        this.byteOffset + byteOffset,
+        len,
+      ).toString()
       return [text, len + 4]
     } else {
-      const view = new Uint8Array(this.buffer, this.byteOffset + byteOffset, len)
+      const view = new Uint8Array(
+        this.buffer,
+        this.byteOffset + byteOffset,
+        len,
+      )
       const text = new TextDecoder().decode(view)
       return [text, len + 4]
     }
   }
 
-  setLongString(byteOffset: number, string: string, littleEndian?: boolean) : number {
+  setLongString(
+    byteOffset: number,
+    string: string,
+    littleEndian?: boolean,
+  ): number {
     if (typeof Buffer !== "undefined") {
       const len = Buffer.byteLength(string)
       this.setUint32(byteOffset, len, littleEndian)
@@ -233,7 +261,11 @@ export class AMQPView extends DataView {
     return [table, len + 4]
   }
 
-  setTable(byteOffset: number, table : Record<string, Field>, littleEndian?: boolean) : number {
+  setTable(
+    byteOffset: number,
+    table: Record<string, Field>,
+    littleEndian?: boolean,
+  ): number {
     // skip the first 4 bytes which are for the size
     let i = byteOffset + 4
     for (const [key, value] of Object.entries(table)) {
@@ -282,7 +314,7 @@ export class AMQPView extends DataView {
     return [v, i - byteOffset]
   }
 
-  setField(byteOffset: number, field: Field, littleEndian?: boolean) : number {
+  setField(byteOffset: number, field: Field, littleEndian?: boolean): number {
     let i = byteOffset
     // prettier-ignore
     switch (typeof field) {
@@ -356,7 +388,7 @@ export class AMQPView extends DataView {
     return [v, len + 4]
   }
 
-  setArray(byteOffset: number, array: Field[], littleEndian?: boolean) : number {
+  setArray(byteOffset: number, array: Field[], littleEndian?: boolean): number {
     const start = byteOffset
     byteOffset += 4 // update the length later
     array.forEach((e) => {
@@ -373,12 +405,20 @@ export class AMQPView extends DataView {
     return [v, len + 4]
   }
 
-  setByteArray(byteOffset: number, data: Uint8Array, littleEndian?: boolean) : number {
+  setByteArray(
+    byteOffset: number,
+    data: Uint8Array,
+    littleEndian?: boolean,
+  ): number {
     // prettier-ignore
     {
       this.setUint32(byteOffset, data.byteLength, littleEndian); byteOffset += 4
     }
-    const view = new Uint8Array(this.buffer, this.byteOffset + byteOffset, data.byteLength)
+    const view = new Uint8Array(
+      this.buffer,
+      this.byteOffset + byteOffset,
+      data.byteLength,
+    )
     view.set(data)
     return data.byteLength + 4
   }

@@ -1,6 +1,6 @@
-import { AMQPError } from './amqp-error.js'
-import type { AMQPChannel } from './amqp-channel.js'
-import type { AMQPMessage } from './amqp-message.js'
+import { AMQPError } from "./amqp-error.js"
+import type { AMQPChannel } from "./amqp-channel.js"
+import type { AMQPMessage } from "./amqp-message.js"
 
 /**
  * A consumer, subscribed to a queue
@@ -20,7 +20,11 @@ export class AMQPConsumer {
    * @param tag - consumer tag
    * @param onMessage - callback executed when a message arrive
    */
-  constructor(channel: AMQPChannel, tag: string, onMessage: (msg: AMQPMessage) => void) {
+  constructor(
+    channel: AMQPChannel,
+    tag: string,
+    onMessage: (msg: AMQPMessage) => void,
+  ) {
     this.channel = channel
     this.tag = tag
     this.onMessage = onMessage
@@ -38,7 +42,8 @@ export class AMQPConsumer {
       this.resolveWait = resolve
       this.rejectWait = reject
       if (timeout) {
-        const onTimeout = () => reject(new AMQPError("Timeout", this.channel.connection))
+        const onTimeout = () =>
+          reject(new AMQPError("Timeout", this.channel.connection))
         this.timeoutId = setTimeout(onTimeout, timeout)
       }
     })
