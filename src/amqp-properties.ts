@@ -23,4 +23,11 @@ export type AMQPProperties = {
   appId?: string
 }
 
-export type Field = string | boolean | bigint | number | undefined | null | object;
+export type Field =
+  | string
+  | boolean
+  | bigint
+  | number
+  | undefined
+  | null
+  | object
