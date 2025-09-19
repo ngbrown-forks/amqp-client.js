@@ -64,6 +64,12 @@ export class AMQPClient extends AMQPBaseClient {
         const clientClosed = this.closed
         this.closed = true
         if (!hadError && !clientClosed) this.onerror(new AMQPError("Socket closed", this))
+        const promise = this.closePromise
+        if (promise) {
+          const [resolve] = promise
+          delete this.closePromise
+          resolve()
+        }
       })
     })
     Object.defineProperty(this, "socket", {

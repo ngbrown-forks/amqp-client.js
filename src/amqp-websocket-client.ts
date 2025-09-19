@@ -105,6 +105,12 @@ export class AMQPWebSocketClient extends AMQPBaseClient {
             this.channels.forEach((ch) => ch?.setClosed())
             this.channels = [new AMQPChannel(this, 0)]
           }
+          const promise = this.closePromise
+          if (promise) {
+            const [resolve] = promise
+            delete this.closePromise
+            resolve()
+          }
         })
         socket.send(new Uint8Array([65, 77, 81, 80, 0, 0, 9, 1]))
       })
