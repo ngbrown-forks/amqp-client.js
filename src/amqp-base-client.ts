@@ -715,7 +715,6 @@ export abstract class AMQPBaseClient {
       }
       i += 1 // frame end
     }
-    this.lastDataReceived = performance.now()
   }
 
   /**
@@ -723,7 +722,7 @@ export abstract class AMQPBaseClient {
    * @returns milliseconds; Infinity if disconnected
    */
   durationSinceLastData(): number {
-    if (typeof this.lastDataReceived === "number") return performance.now() - this.lastDataReceived
+    if (!this.closed && typeof this.lastDataReceived === "number") return performance.now() - this.lastDataReceived
     return Infinity
   }
 }

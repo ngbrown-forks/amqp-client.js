@@ -134,7 +134,10 @@ export class AMQPClient extends AMQPBaseClient {
     }
     const sendStart = () => this.send(new Uint8Array([65, 77, 81, 80, 0, 0, 9, 1]))
     const conn = this.tls ? tls.connect(options, sendStart) : net.connect(options, sendStart)
-    conn.on("data", this.onRead.bind(this))
+    conn.on("data", (buf) => {
+      this.lastDataReceived = performance.now()
+      this.onRead(buf)
+    })
     return conn
   }
 

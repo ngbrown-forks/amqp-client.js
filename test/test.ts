@@ -373,6 +373,42 @@ test("closed socket closes client", async () => {
   expect(amqp.closed).toBe(true)
 })
 
+test("reports elapsed data time while connected and Infinity after socket closure", async () => {
+  const amqp = getNewClient()
+  await amqp.connect()
+  const socket = amqp["socket"]
+  assert(socket, "Socket must be created")
+
+  const closed = new Promise<void>((resolve) => socket.once("close", resolve))
+  try {
+    expect(Number.isFinite(amqp.durationSinceLastData())).toBe(true)
+  } finally {
+    socket.destroy()
+    await closed
+  }
+
+  expect(amqp.durationSinceLastData()).toBe(Infinity)
+})
+
+test("updates lastDataReceived for a partial TCP read before frame parsing completes", async () => {
+  const amqp = getNewClient()
+  await amqp.connect()
+  const socket = amqp["socket"]
+  assert(socket, "Socket must be created")
+
+  const closed = new Promise<void>((resolve) => socket.once("close", resolve))
+  try {
+    amqp.lastDataReceived = 0
+
+    socket.emit("data", Buffer.from([1]))
+
+    expect(amqp.lastDataReceived).toBeGreaterThan(0)
+  } finally {
+    socket.destroy()
+    await closed
+  }
+})
+
 test("wait for publish confirms", async () => {
   const amqp = getNewClient()
   const conn = await amqp.connect()
